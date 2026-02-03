@@ -1,0 +1,73 @@
+<!DOCTYPE html>
+<html lang="ar">
+<head>
+  <meta charset="UTF-8">
+  <title>Chat</title>
+  <style>
+    body { font-family: Arial; background:#f2f2f2; }
+    #chat { max-width:600px; margin:20px auto; background:#fff; padding:10px; }
+    .msg { background:#2196f3; color:#fff; padding:8px; margin:5px 0; border-radius:5px; }
+    #sendBox { display:flex; }
+    #text { flex:1; padding:8px; }
+    button { padding:8px 15px; }
+  </style>
+</head>
+<body>
+
+<div id="chat"></div>
+
+<div id="sendBox">
+  <input id="text" placeholder="اكتب رسالة">
+  <button onclick="send()">إرسال</button>
+</div>
+
+<!-- Firebase -->
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+
+<script>
+  const firebaseConfig = {
+    apiKey: "AIzaSyBzF89FakmMOR0jkOLc2dbyQuobkJIRbfo",
+    authDomain: "alaa-chat-7c28c.firebaseapp.com",
+    projectId: "alaa-chat-7c28c",
+  };
+
+  firebase.initializeApp(firebaseConfig);
+  const db = firebase.firestore();
+
+  const chatDiv = document.getElementById("chat");
+
+  // قراءة الرسائل
+  db.collection("messages")
+    .doc("abo mohamed")
+    .collection("messages")
+    .orderBy("time")
+    .onSnapshot(snapshot => {
+      chatDiv.innerHTML = "";
+      snapshot.forEach(doc => {
+        const div = document.createElement("div");
+        div.className = "msg";
+        div.textContent = doc.data().text;
+        chatDiv.appendChild(div);
+      });
+    });
+
+  // إرسال رسالة
+  function send() {
+    const text = document.getElementById("text").value;
+    if (!text) return;
+
+    db.collection("messages")
+      .doc("abo mohamed")
+      .collection("messages")
+      .add({
+        text: text,
+        time: firebase.firestore.FieldValue.serverTimestamp()
+      });
+
+    document.getElementById("text").value = "";
+  }
+</script>
+
+</body>
+</html>
