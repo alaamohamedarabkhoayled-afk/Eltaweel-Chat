@@ -3,136 +3,100 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>محادثة الطويل الخاصة</title>
+    <title>محادثة الطويل الاحترافية</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
-    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
 
     <style>
-        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; padding: 0; }
-        .header { background: #075e54; color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; }
-        #auth-section { padding: 20px; text-align: center; background: white; margin: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
-        #chat-section { display: none; flex-direction: column; height: 90vh; }
-        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: #e5ddd5; }
-        .msg { margin: 8px; padding: 10px; border-radius: 10px; max-width: 80%; position: relative; font-size: 15px; line-height: 1.4; }
-        .sent { background: #dcf8c6; align-self: flex-start; border-radius: 10px 10px 0 10px; }
-        .received { background: white; align-self: flex-end; border-radius: 10px 10px 10px 0; }
-        .input-area { background: #f0f0f0; padding: 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #ddd; }
-        input[type="text"] { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
-        .btn { cursor: pointer; font-size: 24px; background: none; border: none; }
-        video, img { max-width: 100%; border-radius: 8px; display: block; margin-top: 5px; }
-        audio { width: 100%; margin-top: 5px; }
-        .copy-btn { background: #128c7e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: bold; }
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #efe7de; margin: 0; }
+        .header { background: #075e54; color: white; padding: 10px; text-align: center; position: sticky; top: 0; display: flex; justify-content: space-between; align-items: center; px: 15px; }
+        #auth-section { padding: 20px; text-align: center; background: white; margin: 15px; border-radius: 10px; box-shadow: 0 4px 10px rgba(0,0,0,0.1); }
+        #chat-section { display: none; flex-direction: column; height: 100vh; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; }
+        .msg { margin: 5px; padding: 10px; border-radius: 8px; max-width: 75%; word-wrap: break-word; font-size: 15px; }
+        .sent { background: #dcf8c6; align-self: flex-start; }
+        .received { background: white; align-self: flex-end; }
+        .input-area { background: #f0f0f0; padding: 10px; display: flex; gap: 5px; }
+        input { flex: 1; padding: 10px; border-radius: 20px; border: 1px solid #ddd; outline: none; }
+        .back-btn { background: #ff5252; color: white; border: none; padding: 5px 10px; border-radius: 5px; cursor: pointer; }
+        img.chat-img { max-width: 200px; border-radius: 8px; display: block; margin: 5px 0; }
     </style>
 </head>
 <body>
 
-<div class="header">
-    <h3 id="status-title">محادثة الطويل الآمنة</h3>
-</div>
-
 <div id="auth-section">
-    <p>كودك الشخصي (ارسل هذا الكود لمن تريد محادثته):</p>
-    <strong id="my-id" style="color:#075e54; font-size: 14px; word-break: break-all;">جاري استخراج الكود...</strong>
-    <br>
-    <button id="btn-copy" class="copy-btn" onclick="copyMyId()">نسخ الكود الخاص بي</button>
-    <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
-    <p>أدخل كود الشخص الآخر للبدء:</p>
-    <input type="text" id="receiver-id" placeholder="ضع كود صديقك هنا..." style="width: 90%; padding: 12px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ddd;">
-    <br>
-    <button onclick="startChat()" style="background:#075e54; color:white; border:none; padding:15px; border-radius:5px; width: 95%; cursor:pointer; font-size: 16px; font-weight: bold;">دخول المحادثة</button>
+    <h2>مرحباً بك في شات الطويل</h2>
+    <p>كودك الشخصي:</p>
+    <strong id="my-id" style="color:#075e54;">جاري التحميل...</strong>
+    <br><br>
+    <input type="text" id="receiver-id" placeholder="أدخل كود الشخص الذي تريد مراسلته">
+    <br><br>
+    <button onclick="startChat()" style="background:#25d366; color:white; border:none; padding:12px 40px; border-radius:5px; cursor:pointer; font-weight:bold;">بدء المحادثة</button>
 </div>
 
 <div id="chat-section">
+    <div class="header">
+        <button class="back-btn" onclick="location.reload()">خروج</button>
+        <span id="chatting-with">محادثة</span>
+        <span>🟢</span>
+    </div>
     <div id="messages"></div>
     <div class="input-area">
-        <label class="btn" title="إرسال وسائط">📁<input type="file" id="file-input" hidden onchange="uploadFile()"></label>
-        <input type="text" id="msg-input" placeholder="اكتب رسالتك هنا...">
-        <button onclick="sendMessage()" class="btn">🕊️</button>
+        <input type="text" id="msg-input" placeholder="اكتب رسالة أو رابط صورة...">
+        <button onclick="sendMessage()" style="border:none; background:none; font-size:25px; cursor:pointer;">🕊️</button>
     </div>
 </div>
 
 <script>
-    // إعدادات مشروعك eltaweel-chat من الصور التي أرسلتها
     const firebaseConfig = {
         apiKey: "AIzaSyDRdboeLuFYh_paYHem0SbgCar4bGgBFSI",
         authDomain: "eltaweel-chat.firebaseapp.com",
         projectId: "eltaweel-chat",
         storageBucket: "eltaweel-chat.firebasestorage.app",
         messagingSenderId: "870673668921",
-        appId: "1:870673668921:web:7120ac95978158c963a6e8",
-        measurementId: "G-T8PK60BPTV"
+        appId: "1:870673668921:web:7120ac95978158c963a6e8"
     };
 
-    // بدء العمل
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
-    const storage = firebase.storage();
 
     let currentUserId, chatId;
 
-    // الدخول المجهول
     auth.onAuthStateChanged(user => {
-        if (user) { 
-            currentUserId = user.uid; 
-            document.getElementById('my-id').innerText = user.uid; 
-        } else { 
-            auth.signInAnonymously().catch(e => alert("خطأ في الاتصال: " + e.message)); 
+        if (user) {
+            currentUserId = user.uid;
+            document.getElementById('my-id').innerText = user.uid;
+        } else {
+            auth.signInAnonymously();
         }
     });
 
-    // وظيفة نسخ الكود
-    function copyMyId() {
-        const idText = document.getElementById('my-id').innerText;
-        if (idText.includes("جاري")) return;
-        navigator.clipboard.writeText(idText).then(() => {
-            const btn = document.getElementById('btn-copy');
-            btn.innerText = "✅ تم النسخ!";
-            setTimeout(() => btn.innerText = "نسخ الكود الخاص بي", 2000);
-        });
-    }
-
     function startChat() {
         const otherId = document.getElementById('receiver-id').value.trim();
-        if (!otherId) return alert("ادخل كود الطرف الآخر");
+        if (!otherId) return alert("أدخل كود صديقك أولاً");
+        
+        // إنشاء معرف فريد للمحادثة بين الطرفين
         chatId = [currentUserId, otherId].sort().join("_");
+        
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('chat-section').style.display = 'flex';
+        document.getElementById('chatting-with').innerText = "شات: " + otherId.substring(0,5) + "...";
+        
         loadMessages();
     }
 
     function sendMessage() {
-        const text = document.getElementById('msg-input').value;
+        const text = document.getElementById('msg-input').value.trim();
         if (!text) return;
+
         db.collection("chats").doc(chatId).collection("messages").add({
             text: text,
-            type: 'text',
             senderId: currentUserId,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('msg-input').value = "";
-    }
-
-    async function uploadFile() {
-        const file = document.getElementById('file-input').files[0];
-        if (!file) return;
-        const fileType = file.type.split('/')[0]; 
-        const storageRef = storage.ref(`chats/${chatId}/${Date.now()}_${file.name}`);
-        document.getElementById('status-title').innerText = "جاري الإرسال... ⏳";
-        try {
-            const snap = await storageRef.put(file);
-            const url = await snap.ref.getDownloadURL();
-            db.collection("chats").doc(chatId).collection("messages").add({
-                fileUrl: url,
-                type: fileType,
-                senderId: currentUserId,
-                timestamp: firebase.firestore.FieldValue.serverTimestamp()
-            });
-            document.getElementById('status-title').innerText = "تم الإرسال ✅";
-            setTimeout(() => document.getElementById('status-title').innerText = "محادثة خاصة", 2000);
-        } catch (e) { alert("فشل الرفع: " + e.message); }
     }
 
     function loadMessages() {
@@ -143,12 +107,14 @@
             snap.forEach(doc => {
                 const m = doc.data();
                 const side = m.senderId === currentUserId ? 'sent' : 'received';
-                let html = "";
-                if (m.type === 'text') html = `<span>${m.text}</span>`;
-                else if (m.type === 'image') html = `<img src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
-                else if (m.type === 'video') html = `<video controls src="${m.fileUrl}"></video>`;
-                else if (m.type === 'audio') html = `<audio controls src="${m.fileUrl}"></audio>`;
-                container.innerHTML += `<div class="msg ${side}">${html}</div>`;
+                
+                // ذكاء اصطناعي لتحويل الروابط لصور
+                let content = m.text;
+                if (m.text.match(/\.(jpeg|jpg|gif|png)$/) != null || m.text.includes("images")) {
+                    content = `<img src="${m.text}" class="chat-img" onclick="window.open('${m.text}')">`;
+                }
+
+                container.innerHTML += `<div class="msg ${side}">${content}</div>`;
             });
             container.scrollTop = container.scrollHeight;
         });
