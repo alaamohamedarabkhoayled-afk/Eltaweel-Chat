@@ -2,160 +2,149 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>Eltawell Chat</title>
+  <title>شات خاص</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+
+  <!-- Firebase -->
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+  <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+
   <style>
-    body { font-family: Arial; background:#f2f2f2; padding:10px }
-    #chat { background:#fff; padding:10px; height:300px; overflow:auto }
-    input, button { margin:5px 0; width:100%; padding:8px }
-    audio { width:100%; margin:5px 0 }
+    body { font-family: Arial; background:#f5f5f5; margin:0; padding:10px }
+    input, button { width:100%; padding:10px; margin:5px 0 }
+    #chat { height:300px; overflow-y:auto; background:#fff; padding:10px; margin-top:10px }
+    .msg { margin:5px 0; padding:5px; border-radius:5px }
+    .me { background:#d1ffd1 }
+    .other { background:#eee }
   </style>
 </head>
 <body>
 
-<h3>كودك:</h3>
-<p id="myId">...</p>
+<h3>شات خاص</h3>
 
-<input id="otherId" placeholder="اكتب كود الشخص اللي هتكلمه">
-<button onclick="startChat()">ابدأ محادثة</button>
-
-<hr>
+<input id="myCode" placeholder="كودك (مثلاً: mohamed123)">
+<input id="friendCode" placeholder="كود الشخص اللي هتكلمه">
+<button onclick="startChat()">ابدأ الشات</button>
 
 <div id="chat"></div>
 
-<input id="msg" placeholder="اكتب رسالة">
-<button onclick="sendMsg()">إرسال</button>
+<input id="message" placeholder="اكتب رسالة">
+<button onclick="sendMessage()">إرسال</button>
 
-<button onclick="startRecord()">🎤 تسجيل صوت</button>
-<button onclick="stopRecord()">⏹ إيقاف</button>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
+<button onclick="recordVoice()">🎤 تسجيل صوت</button>
 
 <script>
-const firebaseConfig = {
-  apiKey: "PUT_YOUR_API_KEY",
-  authDomain: "PUT_YOUR_AUTH_DOMAIN",
-  projectId: "PUT_YOUR_PROJECT_ID",
-  storageBucket: "PUT_YOUR_STORAGE_BUCKET",
-  messagingSenderId: "PUT_YOUR_SENDER_ID",
-  appId: "PUT_YOUR_APP_ID"
-};
+  // 🔴 غيّر القيم دي بس
+  const firebaseConfig = {
+    apiKey: "API_KEY",
+    authDomain: "PROJECT_ID.firebaseapp.com",
+    projectId: "PROJECT_ID",
+    storageBucket: "PROJECT_ID.appspot.com",
+    messagingSenderId: "SENDER_ID",
+    appId: "APP_ID"
+  };
 
-firebase.initializeApp(firebaseConfig);
+  firebase.initializeApp(firebaseConfig);
 
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
+  const auth = firebase.auth();
+  const db = firebase.firestore();
+  const storage = firebase.storage();
 
-let myUid = null;
-let chatId = null;
-let unsubscribe = null;
+  let chatId = "";
+  let unsubscribe = null;
 
-// تسجيل دخول مجهول (إنتاج)
-auth.signInAnonymously();
+  auth.signInAnonymously();
 
-auth.onAuthStateChanged(user => {
-  if (user) {
-    myUid = user.uid;
-    document.getElementById("myId").innerText = myUid;
-  }
-});
+  function startChat() {
+    const me = myCode.value.trim();
+    const friend = friendCode.value.trim();
 
-function startChat() {
-  const otherId = document.getElementById("otherId").value.trim();
-  if (!otherId) {
-    alert("اكتب كود الشخص");
-    return;
-  }
+    if (!me || !friend) {
+      alert("اكتب الكودين");
+      return;
+    }
 
-  chatId = myUid < otherId
-    ? myUid + "_" + otherId
-    : otherId + "_" + myUid;
+    chatId = [me, friend].sort().join("_");
 
-  loadMessages();
-}
+    if (unsubscribe) unsubscribe();
 
-function loadMessages() {
-  if (unsubscribe) unsubscribe();
+    unsubscribe = db.collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .orderBy("time")
+      .onSnapshot(snapshot => {
+        chat.innerHTML = "";
+        snapshot.forEach(doc => {
+          const data = doc.data();
+          const div = document.createElement("div");
+          div.className = "msg " + (data.sender === me ? "me" : "other");
 
-  unsubscribe = db.collection("chats")
-    .doc(chatId)
-    .collection("messages")
-    .orderBy("time")
-    .onSnapshot(snapshot => {
-      const chat = document.getElementById("chat");
-      chat.innerHTML = "";
-      snapshot.forEach(doc => {
-        const data = doc.data();
-        if (data.type === "text") {
-          chat.innerHTML += `<p>${data.text}</p>`;
-        }
-        if (data.type === "audio") {
-          chat.innerHTML += `<audio controls src="${data.url}"></audio>`;
-        }
+          if (data.type === "text") {
+            div.innerText = data.text;
+          } else {
+            div.innerHTML = `<audio controls src="${data.url}"></audio>`;
+          }
+
+          chat.appendChild(div);
+          chat.scrollTop = chat.scrollHeight;
+        });
       });
-      chat.scrollTop = chat.scrollHeight;
-    });
-}
+  }
 
-function sendMsg() {
-  const text = document.getElementById("msg").value;
-  if (!text || !chatId) return;
+  function sendMessage() {
+    const text = message.value.trim();
+    if (!text || !chatId) return;
 
-  db.collection("chats")
-    .doc(chatId)
-    .collection("messages")
-    .add({
-      type: "text",
-      text: text,
-      time: firebase.firestore.FieldValue.serverTimestamp()
-    });
+    db.collection("chats")
+      .doc(chatId)
+      .collection("messages")
+      .add({
+        sender: myCode.value,
+        text: text,
+        type: "text",
+        time: firebase.firestore.FieldValue.serverTimestamp()
+      });
 
-  document.getElementById("msg").value = "";
-}
+    message.value = "";
+  }
 
-// تسجيل صوت
-let mediaRecorder;
-let audioChunks = [];
+  let recorder;
+  let audioChunks = [];
 
-function startRecord() {
-  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
-    mediaRecorder = new MediaRecorder(stream);
+  async function recordVoice() {
+    if (!chatId) return alert("ابدأ الشات الأول");
+
+    const stream = await navigator.mediaDevices.getUserMedia({ audio: true });
+    recorder = new MediaRecorder(stream);
     audioChunks = [];
-    mediaRecorder.start();
 
-    mediaRecorder.ondataavailable = e => {
-      audioChunks.push(e.data);
-    };
-  });
-}
+    recorder.ondataavailable = e => audioChunks.push(e.data);
+    recorder.onstop = uploadVoice;
 
-function stopRecord() {
-  if (!mediaRecorder) return;
+    recorder.start();
+    setTimeout(() => recorder.stop(), 5000);
+  }
 
-  mediaRecorder.stop();
-  mediaRecorder.onstop = () => {
+  function uploadVoice() {
     const blob = new Blob(audioChunks, { type: "audio/webm" });
-    const fileName = Date.now() + ".webm";
+    const ref = storage.ref("voices/" + Date.now() + ".webm");
 
-    const ref = storage.ref("voices/" + fileName);
-    ref.put(blob).then(snap => {
-      snap.ref.getDownloadURL().then(url => {
+    ref.put(blob).then(() => {
+      ref.getDownloadURL().then(url => {
         db.collection("chats")
           .doc(chatId)
           .collection("messages")
           .add({
-            type: "audio",
+            sender: myCode.value,
             url: url,
+            type: "voice",
             time: firebase.firestore.FieldValue.serverTimestamp()
           });
       });
     });
-  };
-}
+  }
 </script>
 
 </body>
