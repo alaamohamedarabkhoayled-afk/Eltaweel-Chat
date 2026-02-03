@@ -1,39 +1,157 @@
 <!DOCTYPE html>
-<html lang="ar">
+<html lang="ar" dir="rtl">
 <head>
-<meta charset="UTF-8">
-<title>Eltawell Chat</title>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>محادثة الطويل الخاصة</title>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
+    <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-storage-compat.js"></script>
 
-<style>
-body{font-family:Arial;background:#f2f2f2;padding:10px}
-#chat{background:#fff;height:350px;overflow:auto;padding:10px;margin-bottom:10px}
-.msg{margin:5px 0;padding:6px;border-radius:5px}
-.me{background:#dcf8c6}
-.other{background:#eee}
-input,button{width:100%;padding:8px;margin:5px 0}
-img,video,audio{max-width:100%;margin-top:5px}
-</style>
+    <style>
+        body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; padding: 0; }
+        .header { background: #075e54; color: white; padding: 15px; text-align: center; sticky: top; }
+        #auth-section { padding: 20px; text-align: center; background: white; margin: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        #chat-section { display: none; flex-direction: column; height: 90vh; }
+        #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: #e5ddd5; }
+        .msg { margin: 8px; padding: 10px; border-radius: 10px; max-width: 80%; position: relative; font-size: 15px; line-height: 1.4; }
+        .sent { background: #dcf8c6; align-self: flex-start; border-radius: 10px 10px 0 10px; }
+        .received { background: white; align-self: flex-end; border-radius: 10px 10px 10px 0; }
+        .input-area { background: #f0f0f0; padding: 10px; display: flex; align-items: center; gap: 8px; border-top: 1px solid #ddd; }
+        input[type="text"] { flex: 1; padding: 12px; border-radius: 25px; border: 1px solid #ccc; outline: none; }
+        .btn { cursor: pointer; font-size: 24px; background: none; border: none; }
+        video, img { max-width: 100%; border-radius: 8px; display: block; margin-top: 5px; }
+        audio { width: 100%; margin-top: 5px; }
+    </style>
 </head>
-
 <body>
 
-<h4>كودك:</h4>
-<div id="myId">...</div>
+<div class="header">
+    <h3 id="status-title">محادثة خاصة آمنة</h3>
+</div>
 
-<input id="otherId" placeholder="كود الشخص اللي هتكلمه">
-<button onclick="startChat()">ابدأ الشات</button>
+<div id="auth-section">
+    <p>كودك التعريفي الشخصي: <br><strong id="my-id" style="color:#075e54; font-size: 18px;">جاري استخراج الكود...</strong></p>
+    <input type="text" id="receiver-id" placeholder="ضع كود الشخص الآخر هنا" style="width: 90%; padding: 10px; margin-bottom: 10px;">
+    <br>
+    <button onclick="startChat()" style="background:#075e54; color:white; border:none; padding:12px 30px; border-radius:5px; width: 95%; cursor:pointer;">ابدأ المحادثة الآن</button>
+</div>
 
-<hr>
+<div id="chat-section">
+    <div id="messages"></div>
+    <div class="input-area">
+        <label class="btn" title="إرسال ملف">📁<input type="file" id="file-input" hidden onchange="uploadFile()"></label>
+        <input type="text" id="msg-input" placeholder="اكتب رسالة...">
+        <button onclick="sendMessage()" class="btn">🕊️</button>
+    </div>
+</div>
 
-<div id="chat"></div>
+<script>
+    // بيانات مشروعك Eltaweel-Chat الحقيقية
+    const firebaseConfig = {
+        apiKey: "AIzaSyDRdboeLuFYh_paYHem0SbgCar4bGgBFSI",
+        authDomain: "eltaweel-chat.firebaseapp.com",
+        projectId: "eltaweel-chat",
+        storageBucket: "eltaweel-chat.firebasestorage.app",
+        messagingSenderId: "870673668921",
+        appId: "1:870673668921:web:7120ac95978158c963a6e8",
+        measurementId: "G-T8PK60BPTV"
+    };
 
-<input id="msg" placeholder="اكتب رسالة">
-<button onclick="sendText()">إرسال رسالة</button>
+    // تهيئة فيربيز
+    firebase.initializeApp(firebaseConfig);
+    const auth = firebase.auth();
+    const db = firebase.firestore();
+    const storage = firebase.storage();
 
-<input type="file" id="fileInput" accept="image/*,video/*">
-<button onclick="sendFile()">إرسال صورة / فيديو</button>
+    let currentUserId, chatId;
 
-<button onclick="startRecord()">🎤 تسجيل صوت</button>
+    // تسجيل الدخول المجهول التلقائي
+    auth.onAuthStateChanged(user => {
+        if (user) { 
+            currentUserId = user.uid; 
+            document.getElementById('my-id').innerText = user.uid; 
+        } else { 
+            auth.signInAnonymously(); 
+        }
+    });
+
+    // بدء المحادثة الخاصة
+    function startChat() {
+        const otherId = document.getElementById('receiver-id').value.trim();
+        if (!otherId) return alert("من فضلك أدخل كود الطرف الثاني أولاً");
+        
+        // إنشاء غرفة شات خاصة بالطرفين فقط
+        chatId = [currentUserId, otherId].sort().join("_");
+        
+        document.getElementById('auth-section').style.display = 'none';
+        document.getElementById('chat-section').style.display = 'flex';
+        loadMessages();
+    }
+
+    // إرسال رسالة نصية
+    function sendMessage() {
+        const text = document.getElementById('msg-input').value;
+        if (!text) return;
+        saveToFirestore({ text: text, type: 'text' });
+        document.getElementById('msg-input').value = "";
+    }
+
+    // رفع الوسائط (صور، فيديو، صوت)
+    async function uploadFile() {
+        const file = document.getElementById('file-input').files[0];
+        if (!file) return;
+
+        const fileType = file.type.split('/')[0]; 
+        const fileName = `${Date.now()}_${file.name}`;
+        const storageRef = storage.ref(`chats/${chatId}/${fileName}`);
+
+        document.getElementById('status-title').innerText = "جاري الرفع... ⏳";
+        
+        try {
+            await storageRef.put(file);
+            const url = await storageRef.getDownloadURL();
+            saveToFirestore({ fileUrl: url, type: fileType });
+            document.getElementById('status-title').innerText = "تم الإرسال ✅";
+            setTimeout(() => document.getElementById('status-title').innerText = "محادثة خاصة", 2000);
+        } catch (error) {
+            alert("خطأ في الرفع: " + error.message);
+        }
+    }
+
+    function saveToFirestore(data) {
+        db.collection("chats").doc(chatId).collection("messages").add({
+            ...data,
+            senderId: currentUserId,
+            timestamp: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
+    // تحميل الرسائل لحظياً
+    function loadMessages() {
+        db.collection("chats").doc(chatId).collection("messages").orderBy("timestamp")
+        .onSnapshot(snap => {
+            const container = document.getElementById('messages');
+            container.innerHTML = "";
+            snap.forEach(doc => {
+                const m = doc.data();
+                const alignClass = m.senderId === currentUserId ? 'sent' : 'received';
+                let content = "";
+                
+                if (m.type === 'text') content = `<span>${m.text}</span>`;
+                else if (m.type === 'image') content = `<img src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
+                else if (m.type === 'video') content = `<video controls src="${m.fileUrl}"></video>`;
+                else if (m.type === 'audio') content = `<audio controls src="${m.fileUrl}"></audio>`;
+
+                container.innerHTML += `<div class="msg ${alignClass}">${content}</div>`;
+            });
+            container.scrollTop = container.scrollHeight;
+        });
+    }
+</script>
+</body>
+</html>
 <button onclick="stopRecord()">⏹ إيقاف</button>
 
 <!-- Firebase -->
