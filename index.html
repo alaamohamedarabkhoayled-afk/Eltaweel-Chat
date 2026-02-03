@@ -2,71 +2,160 @@
 <html lang="ar">
 <head>
   <meta charset="UTF-8">
-  <title>Chat</title>
+  <title>Eltawell Chat</title>
   <style>
-    body { font-family: Arial; background:#f2f2f2; }
-    #chat { max-width:600px; margin:20px auto; background:#fff; padding:10px; }
-    .msg { background:#2196f3; color:#fff; padding:8px; margin:5px 0; border-radius:5px; }
-    #sendBox { display:flex; }
-    #text { flex:1; padding:8px; }
-    button { padding:8px 15px; }
+    body { font-family: Arial; background:#f2f2f2; padding:10px }
+    #chat { background:#fff; padding:10px; height:300px; overflow:auto }
+    input, button { margin:5px 0; width:100%; padding:8px }
+    audio { width:100%; margin:5px 0 }
   </style>
 </head>
 <body>
 
+<h3>كودك:</h3>
+<p id="myId">...</p>
+
+<input id="otherId" placeholder="اكتب كود الشخص اللي هتكلمه">
+<button onclick="startChat()">ابدأ محادثة</button>
+
+<hr>
+
 <div id="chat"></div>
 
-<div id="sendBox">
-  <input id="text" placeholder="اكتب رسالة">
-  <button onclick="send()">إرسال</button>
-</div>
+<input id="msg" placeholder="اكتب رسالة">
+<button onclick="sendMsg()">إرسال</button>
+
+<button onclick="startRecord()">🎤 تسجيل صوت</button>
+<button onclick="stopRecord()">⏹ إيقاف</button>
 
 <!-- Firebase -->
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
 <script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
 
 <script>
-  const firebaseConfig = {
-    apiKey: "AIzaSyBzF89FakmMOR0jkOLc2dbyQuobkJIRbfo",
-    authDomain: "alaa-chat-7c28c.firebaseapp.com",
-    projectId: "alaa-chat-7c28c",
-  };
+const firebaseConfig = {
+  apiKey: "PUT_YOUR_API_KEY",
+  authDomain: "PUT_YOUR_AUTH_DOMAIN",
+  projectId: "PUT_YOUR_PROJECT_ID",
+  storageBucket: "PUT_YOUR_STORAGE_BUCKET",
+  messagingSenderId: "PUT_YOUR_SENDER_ID",
+  appId: "PUT_YOUR_APP_ID"
+};
 
-  firebase.initializeApp(firebaseConfig);
-  const db = firebase.firestore();
+firebase.initializeApp(firebaseConfig);
 
-  const chatDiv = document.getElementById("chat");
+const auth = firebase.auth();
+const db = firebase.firestore();
+const storage = firebase.storage();
 
-  // قراءة الرسائل
-  db.collection("messages")
-    .doc("abo mohamed")
+let myUid = null;
+let chatId = null;
+let unsubscribe = null;
+
+// تسجيل دخول مجهول (إنتاج)
+auth.signInAnonymously();
+
+auth.onAuthStateChanged(user => {
+  if (user) {
+    myUid = user.uid;
+    document.getElementById("myId").innerText = myUid;
+  }
+});
+
+function startChat() {
+  const otherId = document.getElementById("otherId").value.trim();
+  if (!otherId) {
+    alert("اكتب كود الشخص");
+    return;
+  }
+
+  chatId = myUid < otherId
+    ? myUid + "_" + otherId
+    : otherId + "_" + myUid;
+
+  loadMessages();
+}
+
+function loadMessages() {
+  if (unsubscribe) unsubscribe();
+
+  unsubscribe = db.collection("chats")
+    .doc(chatId)
     .collection("messages")
     .orderBy("time")
     .onSnapshot(snapshot => {
-      chatDiv.innerHTML = "";
+      const chat = document.getElementById("chat");
+      chat.innerHTML = "";
       snapshot.forEach(doc => {
-        const div = document.createElement("div");
-        div.className = "msg";
-        div.textContent = doc.data().text;
-        chatDiv.appendChild(div);
+        const data = doc.data();
+        if (data.type === "text") {
+          chat.innerHTML += `<p>${data.text}</p>`;
+        }
+        if (data.type === "audio") {
+          chat.innerHTML += `<audio controls src="${data.url}"></audio>`;
+        }
       });
+      chat.scrollTop = chat.scrollHeight;
+    });
+}
+
+function sendMsg() {
+  const text = document.getElementById("msg").value;
+  if (!text || !chatId) return;
+
+  db.collection("chats")
+    .doc(chatId)
+    .collection("messages")
+    .add({
+      type: "text",
+      text: text,
+      time: firebase.firestore.FieldValue.serverTimestamp()
     });
 
-  // إرسال رسالة
-  function send() {
-    const text = document.getElementById("text").value;
-    if (!text) return;
+  document.getElementById("msg").value = "";
+}
 
-    db.collection("messages")
-      .doc("abo mohamed")
-      .collection("messages")
-      .add({
-        text: text,
-        time: firebase.firestore.FieldValue.serverTimestamp()
+// تسجيل صوت
+let mediaRecorder;
+let audioChunks = [];
+
+function startRecord() {
+  navigator.mediaDevices.getUserMedia({ audio: true }).then(stream => {
+    mediaRecorder = new MediaRecorder(stream);
+    audioChunks = [];
+    mediaRecorder.start();
+
+    mediaRecorder.ondataavailable = e => {
+      audioChunks.push(e.data);
+    };
+  });
+}
+
+function stopRecord() {
+  if (!mediaRecorder) return;
+
+  mediaRecorder.stop();
+  mediaRecorder.onstop = () => {
+    const blob = new Blob(audioChunks, { type: "audio/webm" });
+    const fileName = Date.now() + ".webm";
+
+    const ref = storage.ref("voices/" + fileName);
+    ref.put(blob).then(snap => {
+      snap.ref.getDownloadURL().then(url => {
+        db.collection("chats")
+          .doc(chatId)
+          .collection("messages")
+          .add({
+            type: "audio",
+            url: url,
+            time: firebase.firestore.FieldValue.serverTimestamp()
+          });
       });
-
-    document.getElementById("text").value = "";
-  }
+    });
+  };
+}
 </script>
 
 </body>
