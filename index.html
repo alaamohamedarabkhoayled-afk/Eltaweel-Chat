@@ -11,7 +11,7 @@
 
     <style>
         body { font-family: 'Segoe UI', sans-serif; background: #e5ddd5; margin: 0; padding: 0; }
-        .header { background: #075e54; color: white; padding: 15px; text-align: center; sticky: top; }
+        .header { background: #075e54; color: white; padding: 15px; text-align: center; position: sticky; top: 0; z-index: 1000; }
         #auth-section { padding: 20px; text-align: center; background: white; margin: 20px; border-radius: 10px; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         #chat-section { display: none; flex-direction: column; height: 90vh; }
         #messages { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; background: #e5ddd5; }
@@ -23,32 +23,38 @@
         .btn { cursor: pointer; font-size: 24px; background: none; border: none; }
         video, img { max-width: 100%; border-radius: 8px; display: block; margin-top: 5px; }
         audio { width: 100%; margin-top: 5px; }
+        .copy-btn { background: #128c7e; color: white; border: none; padding: 8px 15px; border-radius: 5px; cursor: pointer; margin-top: 10px; font-weight: bold; }
     </style>
 </head>
 <body>
 
 <div class="header">
-    <h3 id="status-title">محادثة خاصة آمنة</h3>
+    <h3 id="status-title">محادثة الطويل الآمنة</h3>
 </div>
 
 <div id="auth-section">
-    <p>كودك التعريفي الشخصي: <br><strong id="my-id" style="color:#075e54; font-size: 18px;">جاري استخراج الكود...</strong></p>
-    <input type="text" id="receiver-id" placeholder="ضع كود الشخص الآخر هنا" style="width: 90%; padding: 10px; margin-bottom: 10px;">
+    <p>كودك الشخصي (ارسل هذا الكود لمن تريد محادثته):</p>
+    <strong id="my-id" style="color:#075e54; font-size: 14px; word-break: break-all;">جاري استخراج الكود...</strong>
     <br>
-    <button onclick="startChat()" style="background:#075e54; color:white; border:none; padding:12px 30px; border-radius:5px; width: 95%; cursor:pointer;">ابدأ المحادثة الآن</button>
+    <button id="btn-copy" class="copy-btn" onclick="copyMyId()">نسخ الكود الخاص بي</button>
+    <hr style="margin: 25px 0; border: 0; border-top: 1px solid #eee;">
+    <p>أدخل كود الشخص الآخر للبدء:</p>
+    <input type="text" id="receiver-id" placeholder="ضع كود صديقك هنا..." style="width: 90%; padding: 12px; margin-bottom: 15px; border-radius: 5px; border: 1px solid #ddd;">
+    <br>
+    <button onclick="startChat()" style="background:#075e54; color:white; border:none; padding:15px; border-radius:5px; width: 95%; cursor:pointer; font-size: 16px; font-weight: bold;">دخول المحادثة</button>
 </div>
 
 <div id="chat-section">
     <div id="messages"></div>
     <div class="input-area">
-        <label class="btn" title="إرسال ملف">📁<input type="file" id="file-input" hidden onchange="uploadFile()"></label>
-        <input type="text" id="msg-input" placeholder="اكتب رسالة...">
+        <label class="btn" title="إرسال وسائط">📁<input type="file" id="file-input" hidden onchange="uploadFile()"></label>
+        <input type="text" id="msg-input" placeholder="اكتب رسالتك هنا...">
         <button onclick="sendMessage()" class="btn">🕊️</button>
     </div>
 </div>
 
 <script>
-    // بيانات مشروعك Eltaweel-Chat الحقيقية
+    // إعدادات مشروعك eltaweel-chat من الصور التي أرسلتها
     const firebaseConfig = {
         apiKey: "AIzaSyDRdboeLuFYh_paYHem0SbgCar4bGgBFSI",
         authDomain: "eltaweel-chat.firebaseapp.com",
@@ -59,7 +65,7 @@
         measurementId: "G-T8PK60BPTV"
     };
 
-    // تهيئة فيربيز
+    // بدء العمل
     firebase.initializeApp(firebaseConfig);
     const auth = firebase.auth();
     const db = firebase.firestore();
@@ -67,68 +73,68 @@
 
     let currentUserId, chatId;
 
-    // تسجيل الدخول المجهول التلقائي
+    // الدخول المجهول
     auth.onAuthStateChanged(user => {
         if (user) { 
             currentUserId = user.uid; 
             document.getElementById('my-id').innerText = user.uid; 
         } else { 
-            auth.signInAnonymously(); 
+            auth.signInAnonymously().catch(e => alert("خطأ في الاتصال: " + e.message)); 
         }
     });
 
-    // بدء المحادثة الخاصة
+    // وظيفة نسخ الكود
+    function copyMyId() {
+        const idText = document.getElementById('my-id').innerText;
+        if (idText.includes("جاري")) return;
+        navigator.clipboard.writeText(idText).then(() => {
+            const btn = document.getElementById('btn-copy');
+            btn.innerText = "✅ تم النسخ!";
+            setTimeout(() => btn.innerText = "نسخ الكود الخاص بي", 2000);
+        });
+    }
+
     function startChat() {
         const otherId = document.getElementById('receiver-id').value.trim();
-        if (!otherId) return alert("من فضلك أدخل كود الطرف الثاني أولاً");
-        
-        // إنشاء غرفة شات خاصة بالطرفين فقط
+        if (!otherId) return alert("ادخل كود الطرف الآخر");
         chatId = [currentUserId, otherId].sort().join("_");
-        
         document.getElementById('auth-section').style.display = 'none';
         document.getElementById('chat-section').style.display = 'flex';
         loadMessages();
     }
 
-    // إرسال رسالة نصية
     function sendMessage() {
         const text = document.getElementById('msg-input').value;
         if (!text) return;
-        saveToFirestore({ text: text, type: 'text' });
-        document.getElementById('msg-input').value = "";
-    }
-
-    // رفع الوسائط (صور، فيديو، صوت)
-    async function uploadFile() {
-        const file = document.getElementById('file-input').files[0];
-        if (!file) return;
-
-        const fileType = file.type.split('/')[0]; 
-        const fileName = `${Date.now()}_${file.name}`;
-        const storageRef = storage.ref(`chats/${chatId}/${fileName}`);
-
-        document.getElementById('status-title').innerText = "جاري الرفع... ⏳";
-        
-        try {
-            await storageRef.put(file);
-            const url = await storageRef.getDownloadURL();
-            saveToFirestore({ fileUrl: url, type: fileType });
-            document.getElementById('status-title').innerText = "تم الإرسال ✅";
-            setTimeout(() => document.getElementById('status-title').innerText = "محادثة خاصة", 2000);
-        } catch (error) {
-            alert("خطأ في الرفع: " + error.message);
-        }
-    }
-
-    function saveToFirestore(data) {
         db.collection("chats").doc(chatId).collection("messages").add({
-            ...data,
+            text: text,
+            type: 'text',
             senderId: currentUserId,
             timestamp: firebase.firestore.FieldValue.serverTimestamp()
         });
+        document.getElementById('msg-input').value = "";
     }
 
-    // تحميل الرسائل لحظياً
+    async function uploadFile() {
+        const file = document.getElementById('file-input').files[0];
+        if (!file) return;
+        const fileType = file.type.split('/')[0]; 
+        const storageRef = storage.ref(`chats/${chatId}/${Date.now()}_${file.name}`);
+        document.getElementById('status-title').innerText = "جاري الإرسال... ⏳";
+        try {
+            const snap = await storageRef.put(file);
+            const url = await snap.ref.getDownloadURL();
+            db.collection("chats").doc(chatId).collection("messages").add({
+                fileUrl: url,
+                type: fileType,
+                senderId: currentUserId,
+                timestamp: firebase.firestore.FieldValue.serverTimestamp()
+            });
+            document.getElementById('status-title').innerText = "تم الإرسال ✅";
+            setTimeout(() => document.getElementById('status-title').innerText = "محادثة خاصة", 2000);
+        } catch (e) { alert("فشل الرفع: " + e.message); }
+    }
+
     function loadMessages() {
         db.collection("chats").doc(chatId).collection("messages").orderBy("timestamp")
         .onSnapshot(snap => {
@@ -136,159 +142,17 @@
             container.innerHTML = "";
             snap.forEach(doc => {
                 const m = doc.data();
-                const alignClass = m.senderId === currentUserId ? 'sent' : 'received';
-                let content = "";
-                
-                if (m.type === 'text') content = `<span>${m.text}</span>`;
-                else if (m.type === 'image') content = `<img src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
-                else if (m.type === 'video') content = `<video controls src="${m.fileUrl}"></video>`;
-                else if (m.type === 'audio') content = `<audio controls src="${m.fileUrl}"></audio>`;
-
-                container.innerHTML += `<div class="msg ${alignClass}">${content}</div>`;
+                const side = m.senderId === currentUserId ? 'sent' : 'received';
+                let html = "";
+                if (m.type === 'text') html = `<span>${m.text}</span>`;
+                else if (m.type === 'image') html = `<img src="${m.fileUrl}" onclick="window.open('${m.fileUrl}')">`;
+                else if (m.type === 'video') html = `<video controls src="${m.fileUrl}"></video>`;
+                else if (m.type === 'audio') html = `<audio controls src="${m.fileUrl}"></audio>`;
+                container.innerHTML += `<div class="msg ${side}">${html}</div>`;
             });
             container.scrollTop = container.scrollHeight;
         });
     }
 </script>
-</body>
-</html>
-<button onclick="stopRecord()">⏹ إيقاف</button>
-
-<!-- Firebase -->
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-auth-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-firestore-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-storage-compat.js"></script>
-
-<script>
-// 🔴 حط بيانات Firebase بتاعتك هنا
-const firebaseConfig = {
-  apiKey: "API_KEY",
-  authDomain: "PROJECT.firebaseapp.com",
-  projectId: "PROJECT_ID",
-  storageBucket: "PROJECT.appspot.com",
-  messagingSenderId: "SENDER_ID",
-  appId: "APP_ID"
-};
-
-firebase.initializeApp(firebaseConfig);
-
-const auth = firebase.auth();
-const db = firebase.firestore();
-const storage = firebase.storage();
-
-let myUid=null, chatId=null, unsub=null;
-
-// تسجيل دخول مجهول
-auth.signInAnonymously();
-auth.onAuthStateChanged(u=>{
-  if(u){
-    myUid=u.uid;
-    document.getElementById("myId").innerText=myUid;
-  }
-});
-
-// إنشاء شات شخصي
-function startChat(){
-  const other=document.getElementById("otherId").value.trim();
-  if(!other){alert("اكتب الكود");return;}
-
-  chatId = myUid < other ? myUid+"_"+other : other+"_"+myUid;
-  if(unsub)unsub();
-
-  unsub = db.collection("chats").doc(chatId)
-    .collection("messages")
-    .orderBy("time")
-    .onSnapshot(snap=>{
-      chat.innerHTML="";
-      snap.forEach(d=>{
-        const m=d.data();
-        const cls=m.sender===myUid?"me":"other";
-        let html=`<div class="msg ${cls}">`;
-
-        if(m.type==="text") html+=m.text;
-        if(m.type==="image") html+=`<img src="${m.url}">`;
-        if(m.type==="video") html+=`<video controls src="${m.url}"></video>`;
-        if(m.type==="audio") html+=`<audio controls src="${m.url}"></audio>`;
-
-        html+="</div>";
-        chat.innerHTML+=html;
-      });
-      chat.scrollTop=chat.scrollHeight;
-    });
-}
-
-// إرسال نص
-function sendText(){
-  const t=msg.value.trim();
-  if(!t||!chatId)return;
-
-  db.collection("chats").doc(chatId)
-    .collection("messages")
-    .add({
-      type:"text",
-      text:t,
-      sender:myUid,
-      time:firebase.firestore.FieldValue.serverTimestamp()
-    });
-  msg.value="";
-}
-
-// إرسال صورة / فيديو
-function sendFile(){
-  if(!chatId)return;
-  const file=fileInput.files[0];
-  if(!file)return;
-
-  const type=file.type.startsWith("image")?"image":"video";
-  const ref=storage.ref("media/"+Date.now()+"_"+file.name);
-
-  ref.put(file).then(s=>
-    s.ref.getDownloadURL().then(url=>{
-      db.collection("chats").doc(chatId)
-        .collection("messages")
-        .add({
-          type:type,
-          url:url,
-          sender:myUid,
-          time:firebase.firestore.FieldValue.serverTimestamp()
-        });
-    })
-  );
-}
-
-// تسجيل صوت
-let recorder,chunks=[];
-function startRecord(){
-  navigator.mediaDevices.getUserMedia({audio:true}).then(stream=>{
-    recorder=new MediaRecorder(stream);
-    chunks=[];
-    recorder.start();
-    recorder.ondataavailable=e=>chunks.push(e.data);
-  });
-}
-
-function stopRecord(){
-  if(!recorder)return;
-  recorder.stop();
-  recorder.onstop=()=>{
-    const blob=new Blob(chunks,{type:"audio/webm"});
-    const ref=storage.ref("voices/"+Date.now()+".webm");
-    ref.put(blob).then(s=>
-      s.ref.getDownloadURL().then(url=>{
-        db.collection("chats").doc(chatId)
-          .collection("messages")
-          .add({
-            type:"audio",
-            url:url,
-            sender:myUid,
-            time:firebase.firestore.FieldValue.serverTimestamp()
-          });
-      })
-    );
-  };
-}
-</script>
-
 </body>
 </html>
