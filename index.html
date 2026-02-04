@@ -3,8 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل 2026 - النسخة المعتمدة</title>
-    
+    <title>شات الطويل V5</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -12,86 +11,70 @@
 
     <style>
         :root { --primary: #075e54; --accent: #25d366; --bg: #efe7de; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--bg); margin: 0; user-select: none; }
+        body { font-family: 'Segoe UI', sans-serif; background: var(--bg); margin: 0; }
         
-        /* الهيدر */
-        .app-header { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; position: sticky; top: 0; z-index: 1000; box-shadow: 0 2px 5px rgba(0,0,0,0.2); }
-        .settings-icon { cursor: pointer; font-size: 20px; transition: 0.3s; }
-        .settings-icon:hover { transform: rotate(90deg); }
-
-        /* الأفاتار وحالة الاتصال الذكية */
-        .avatar-wrap { position: relative; width: 55px; height: 55px; }
-        .avatar-circle { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; font-size: 22px; text-shadow: 1px 1px 2px rgba(0,0,0,0.2); }
-        .online-status-dot { width: 15px; height: 15px; background: #999; border: 2px solid white; border-radius: 50%; position: absolute; bottom: 2px; left: 2px; }
-        .active-online .online-status-dot { background: var(--accent); }
-
-        /* قائمة الدردشة */
-        .chat-item { background: white; margin: 10px; padding: 12px; border-radius: 18px; display: flex; align-items: center; gap: 15px; box-shadow: 0 1px 4px rgba(0,0,0,0.08); cursor: pointer; transition: 0.2s; }
-        .chat-item:active { transform: scale(0.97); }
-
-        /* النوافذ الاحترافية (Custom Modals) */
-        .custom-overlay { display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.7); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
-        .custom-modal { background: white; width: 85%; max-width: 330px; padding: 25px; border-radius: 25px; text-align: center; box-shadow: 0 15px 40px rgba(0,0,0,0.3); animation: slideUp 0.3s; }
-        @keyframes slideUp { from { transform: translateY(30px); opacity: 0; } to { transform: translateY(0); opacity: 1; } }
+        /* واجهة البدء لتفعيل الصوت */
+        #start-screen { position: fixed; inset: 0; background: var(--primary); z-index: 9999; display: flex; flex-direction: column; align-items: center; justify-content: center; color: white; }
         
-        .custom-input { width: 100%; padding: 15px; margin: 15px 0; border-radius: 15px; border: 2px solid #eee; text-align: center; font-size: 18px; outline: none; box-sizing: border-box; }
-        .custom-input:focus { border-color: var(--accent); }
-        .main-btn { background: var(--accent); color: white; border: none; padding: 14px; width: 100%; border-radius: 15px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .header { background: var(--primary); color: white; padding: 15px; display: flex; justify-content: space-between; align-items: center; }
+        
+        /* الأفاتار والأونلاين */
+        .avatar-container { position: relative; width: 50px; height: 50px; }
+        .avatar { width: 100%; height: 100%; border-radius: 50%; display: flex; align-items: center; justify-content: center; color: white; font-weight: bold; }
+        .status-dot { width: 12px; height: 12px; background: #999; border: 2px solid white; border-radius: 50%; position: absolute; bottom: 2px; left: 2px; }
+        .is-online .status-dot { background: var(--accent) !important; }
 
-        /* شاشة المحادثة */
-        #chat-screen { display: none; position: fixed; top: 0; width: 100%; height: 100%; background: var(--bg); z-index: 2000; flex-direction: column; }
-        #message-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 12px; }
-        .bubble { padding: 10px 16px; border-radius: 18px; max-width: 75%; font-size: 15px; line-height: 1.5; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
-        .msg-me { background: #dcf8c6; align-self: flex-start; border-bottom-left-radius: 2px; }
-        .msg-them { background: white; align-self: flex-end; border-bottom-right-radius: 2px; }
-
-        .add-float { background: var(--accent); color: white; border: none; width: 65px; height: 65px; border-radius: 50%; position: fixed; bottom: 35px; left: 35px; font-size: 35px; box-shadow: 0 5px 20px rgba(37, 211, 102, 0.4); cursor: pointer; z-index: 1001; }
+        .friend-row { background: white; margin: 8px; padding: 10px; border-radius: 12px; display: flex; align-items: center; gap: 15px; cursor: pointer; box-shadow: 0 1px 2px rgba(0,0,0,0.1); }
+        
+        #chat-window { display: none; position: fixed; inset: 0; background: var(--bg); z-index: 1000; flex-direction: column; }
+        #msg-box { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
+        .bubble { padding: 8px 12px; border-radius: 12px; max-width: 70%; font-size: 14px; }
+        .sent { background: #dcf8c6; align-self: flex-start; }
+        .received { background: white; align-self: flex-end; }
+        
+        .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.8); z-index: 2000; align-items: center; justify-content: center; }
+        .modal-content { background: white; padding: 20px; border-radius: 15px; width: 80%; text-align: center; }
     </style>
 </head>
 <body>
 
-<audio id="msgSound" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+<div id="start-screen">
+    <h1>شات الطويل</h1>
+    <button onclick="startApp()" style="padding: 15px 40px; border-radius: 30px; border: none; background: var(--accent); color: white; font-weight: bold; font-size: 18px; cursor: pointer;">دخول التطبيق 🔓</button>
+</div>
 
-<div id="home-screen">
-    <div class="app-header">
-        <span style="font-size: 20px; font-weight: bold;">شات الطويل 🗩</span>
-        <div style="display: flex; align-items: center; gap: 12px;">
-            <div id="myPhoneLabel" style="font-size: 11px; background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 20px;">جاري التحميل...</div>
-            <div class="settings-icon" onclick="openProfileSettings()">⚙️</div>
+<audio id="beep" src="https://assets.mixkit.co/active_storage/sfx/2354/2354-preview.mp3" preload="auto"></audio>
+
+<div id="app-ui">
+    <div class="header">
+        <span>شات الطويل 🗩</span>
+        <div style="display:flex; gap:10px; align-items:center;">
+            <small id="my-phone-val"></small>
+            <button onclick="openProfile()" style="background:none; border:none; color:white; font-size:18px;">⚙️</button>
         </div>
     </div>
-    <div id="friends-container"></div>
-    <button class="add-float" onclick="document.getElementById('addModal').style.display='flex'">+</button>
+    <div id="friends-list"></div>
+    <button onclick="showAddModal()" style="position:fixed; bottom:20px; left:20px; width:60px; height:60px; border-radius:50%; background:var(--accent); border:none; color:white; font-size:30px; box-shadow: 0 4px 10px rgba(0,0,0,0.3);">+</button>
 </div>
 
-<div id="profileModal" class="custom-overlay">
-    <div class="custom-modal">
-        <h3 id="modalTitle">الملف الشخصي</h3>
-        <p style="color: #666; font-size: 14px;">أدخل رقم هاتفك ليتعرف عليك الأصدقاء</p>
-        <input type="number" id="phoneInput" class="custom-input" placeholder="01xxxxxxxxx">
-        <button class="main-btn" onclick="updateProfile()">حفظ ومتابعة</button>
+<div id="chat-window">
+    <div class="header">
+        <button onclick="location.reload()" style="background:none; border:none; color:white; font-size:20px;">➡️</button>
+        <span id="chat-with">الاسم</span>
+        <div style="width:20px;"></div>
+    </div>
+    <div id="msg-box"></div>
+    <div style="background:#eee; padding:10px; display:flex; gap:10px;">
+        <input type="text" id="msg-in" style="flex:1; padding:10px; border-radius:20px; border:none;" placeholder="رسالة...">
+        <button onclick="sendMsg()" style="background:none; border:none; font-size:25px;">🕊️</button>
     </div>
 </div>
 
-<div id="addModal" class="custom-overlay">
-    <div class="custom-modal">
-        <h3>إضافة صديق</h3>
-        <input type="number" id="friendSearchInput" class="custom-input" placeholder="رقم هاتف الصديق">
-        <button class="main-btn" onclick="addNewFriend()">بحث وإضافة</button>
-        <button onclick="document.getElementById('addModal').style.display='none'" style="margin-top:15px; border:none; background:none; color:#888; cursor:pointer;">إلغاء</button>
-    </div>
-</div>
-
-<div id="chat-screen">
-    <div class="app-header">
-        <button onclick="location.reload()" style="background:none; border:none; color:white; font-size:24px; cursor:pointer;">➡️</button>
-        <span id="activeFriendName">المحادثة</span>
-        <div style="width: 30px;"></div>
-    </div>
-    <div id="message-area"></div>
-    <div style="background:#f0f0f0; padding:12px; display:flex; gap:10px;">
-        <input type="text" id="chatInput" style="flex:1; border:none; padding:15px; border-radius:30px; outline:none;" placeholder="اكتب رسالة...">
-        <button onclick="send()" style="background:none; border:none; font-size:30px; cursor:pointer;">🕊️</button>
+<div id="p-modal" class="modal">
+    <div class="modal-content">
+        <h3 id="m-title">بياناتك</h3>
+        <input type="number" id="p-input" style="width:90%; padding:10px; margin:10px 0;" placeholder="01xxxxxxxxx">
+        <button onclick="saveP()" style="width:100%; padding:10px; background:var(--accent); color:white; border:none; border-radius:10px;">حفظ</button>
     </div>
 </div>
 
@@ -107,135 +90,118 @@
     };
 
     firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth();
-    const db = firebase.firestore();
-    const rtdb = firebase.database();
+    const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
+    let myId, myP, activeId, mCount = 0;
 
-    let myUid, myPhoneNum, currentChatId, lastMessageSize = 0;
-
-    // طلب إذن الإشعارات
-    if ("Notification" in window && Notification.permission !== "granted") {
-        Notification.requestPermission();
+    // البدء الحقيقي (تجاوز حظر المتصفح)
+    function startApp() {
+        document.getElementById('start-screen').style.display = 'none';
+        if ("Notification" in window) Notification.requestPermission();
+        document.getElementById('beep').play().then(s => { 
+            document.getElementById('beep').pause(); 
+            document.getElementById('beep').currentTime = 0; 
+        }).catch(e => console.log("Sound ready"));
     }
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            myUid = user.uid;
-            handleUserPresence(); // تفعيل نظام المتصلين
-            checkAccountStatus();
+            myId = user.uid;
+            // نظام المتصلين المصلح
+            const statusRef = rtdb.ref('/status/' + myId);
+            rtdb.ref('.info/connected').on('value', s => {
+                if (s.val()) statusRef.onDisconnect().set('offline').then(() => statusRef.set('online'));
+            });
+            checkUser();
         } else {
             auth.signInAnonymously();
         }
     });
 
-    function handleUserPresence() {
-        const myStatusRef = rtdb.ref('/status/' + myUid);
-        rtdb.ref('.info/connected').on('value', snap => {
-            if (snap.val()) {
-                myStatusRef.onDisconnect().set('offline').then(() => myStatusRef.set('online'));
-            }
-        });
-    }
-
-    function checkAccountStatus() {
-        db.collection("users").doc(myUid).get().then(doc => {
+    function checkUser() {
+        db.collection("users").doc(myId).get().then(doc => {
             if (!doc.exists) {
-                document.getElementById('profileModal').style.display = 'flex';
-                document.getElementById('modalTitle').innerText = "سجل الآن";
+                document.getElementById('p-modal').style.display = 'flex';
+                document.getElementById('m-title').innerText = "سجل رقمك";
             } else {
-                myPhoneNum = doc.data().phone;
-                document.getElementById('myPhoneLabel').innerText = "رقمي: " + myPhoneNum;
-                loadFriendsList();
+                myP = doc.data().phone;
+                document.getElementById('my-phone-val').innerText = myP;
+                loadFriends();
             }
         });
     }
 
-    function updateProfile() {
-        const val = document.getElementById('phoneInput').value.trim();
-        if (val.length < 5) return alert("الرقم غير صالح");
-        db.collection("users").doc(myUid).set({phone: val, uid: myUid}, {merge: true}).then(() => location.reload());
+    function saveP() {
+        const val = document.getElementById('p-input').value;
+        if (val.length < 5) return;
+        db.collection("users").doc(myId).set({phone: val, uid: myId}, {merge:true}).then(() => location.reload());
     }
 
-    function openProfileSettings() {
-        document.getElementById('profileModal').style.display = 'flex';
-        document.getElementById('phoneInput').value = myPhoneNum || "";
-        document.getElementById('modalTitle').innerText = "تعديل الرقم";
+    function openProfile() {
+        document.getElementById('p-modal').style.display = 'flex';
+        document.getElementById('p-input').value = myP;
     }
 
-    function loadFriendsList() {
-        db.collection("users").doc(myUid).collection("myChats").onSnapshot(snap => {
-            const container = document.getElementById('friends-container');
-            container.innerHTML = snap.empty ? '<p style="text-align:center; color:#888; margin-top:50px;">أضف أصدقاءك للبدء</p>' : '';
+    function loadFriends() {
+        db.collection("users").doc(myId).collection("myChats").onSnapshot(snap => {
+            const list = document.getElementById('friends-list');
+            list.innerHTML = "";
             snap.forEach(doc => {
                 const f = doc.data();
-                const avatarColor = `hsl(${Math.abs(f.id.charCodeAt(0)) * 25 % 360}, 60%, 45%)`;
-                const item = document.createElement('div');
-                item.className = 'chat-item';
-                item.id = 'friend-' + f.id;
-                item.onclick = () => openChatBox(f.id, f.nickname);
-                item.innerHTML = `
-                    <div class="avatar-wrap">
-                        <div class="avatar-circle" style="background:${avatarColor}">${f.nickname.charAt(0).toUpperCase()}</div>
-                        <div class="online-status-dot"></div>
-                    </div>
-                    <b>${f.nickname}</b>`;
-                container.appendChild(item);
+                const color = `hsl(${Math.abs(f.id.charCodeAt(0)) * 30 % 360}, 60%, 40%)`;
+                const div = document.createElement('div');
+                div.className = 'friend-row';
+                div.id = 'f-' + f.id;
+                div.onclick = () => openChat(f.id, f.nickname);
+                div.innerHTML = `<div class="avatar-container"><div class="avatar" style="background:${color}">${f.nickname.charAt(0)}</div><div class="status-dot"></div></div><b>${f.nickname}</b>`;
+                list.appendChild(div);
 
-                // متابعة حالة المتصل
+                // تحديث الأونلاين
                 rtdb.ref('/status/' + f.id).on('value', s => {
-                    item.classList.toggle('active-online', s.val() === 'online');
+                    div.classList.toggle('is-online', s.val() === 'online');
                 });
             });
         });
     }
 
-    function openChatBox(id, name) {
-        currentChatId = [myUid, id].sort().join("_");
-        document.getElementById('home-screen').style.display = 'none';
-        document.getElementById('chat-screen').style.display = 'flex';
-        document.getElementById('activeFriendName').innerText = name;
-        syncMessages(name);
-    }
-
-    function syncMessages(friendName) {
-        db.collection("chats").doc(currentChatId).collection("messages").orderBy("time").onSnapshot(snap => {
-            const box = document.getElementById('message-area');
+    function openChat(id, name) {
+        activeId = [myId, id].sort().join("_");
+        document.getElementById('app-ui').style.display = 'none';
+        document.getElementById('chat-window').style.display = 'flex';
+        document.getElementById('chat-with').innerText = name;
+        db.collection("chats").doc(activeId).collection("messages").orderBy("time").onSnapshot(snap => {
+            const box = document.getElementById('msg-box');
             box.innerHTML = "";
             snap.forEach(d => {
                 const m = d.data();
-                box.innerHTML += `<div class="bubble ${m.sender === myUid ? 'msg-me' : 'msg-them'}">${m.text}</div>`;
+                box.innerHTML += `<div class="bubble ${m.sender === myId ? 'sent' : 'received'}">${m.text}</div>`;
             });
-
-            if (snap.size > lastMessageSize && snap.docs[snap.size-1].data().sender !== myUid) {
-                // صوت وتنبيه
-                document.getElementById('msgSound').play().catch(() => {});
-                if (document.hidden || document.getElementById('chat-screen').style.display === 'none') {
-                    new Notification("رسالة جديدة من " + friendName, { body: snap.docs[snap.size-1].data().text });
+            if (snap.size > mCount && snap.docs[snap.size-1].data().sender !== myId) {
+                document.getElementById('beep').play().catch(() => {});
+                if (document.hidden) {
+                    new Notification("رسالة من " + name, { body: snap.docs[snap.size-1].data().text });
                 }
             }
-            lastMessageSize = snap.size;
+            mCount = snap.size;
             box.scrollTop = box.scrollHeight;
         });
     }
 
-    function send() {
-        const t = document.getElementById('chatInput').value.trim();
+    function sendMsg() {
+        const t = document.getElementById('msg-in').value;
         if (!t) return;
-        db.collection("chats").doc(currentChatId).collection("messages").add({
-            text: t, sender: myUid, time: firebase.firestore.FieldValue.serverTimestamp()
+        db.collection("chats").doc(activeId).collection("messages").add({
+            text: t, sender: myId, time: firebase.firestore.FieldValue.serverTimestamp()
         });
-        document.getElementById('chatInput').value = "";
+        document.getElementById('msg-in').value = "";
     }
 
-    function addNewFriend() {
-        const p = document.getElementById('friendSearchInput').value.trim();
-        if (p === myPhoneNum) return alert("لا يمكنك إضافة نفسك!");
+    function showAddModal() {
+        let p = prompt("دخل رقم الصديق:");
+        if (!p) return;
         db.collection("users").where("phone", "==", p).get().then(snap => {
-            if (snap.empty) return alert("الرقم غير مسجل!");
+            if (snap.empty) return alert("مش موجود");
             const f = snap.docs[0].data();
-            db.collection("users").doc(myUid).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p});
-            document.getElementById('addModal').style.display = 'none';
-            document.getElementById('friendSearchInput').value = "";
+            db.collection("users").doc(myId).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p});
         });
     }
 </script>
