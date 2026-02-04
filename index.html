@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل Pro - النسخة المتكاملة</title>
+    <title>شات الطويل Pro - النسخة الكاملة</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -53,6 +53,9 @@
     <button class="gate-btn" onclick="openApp()">تفعيل ودخول 🔓</button>
 </div>
 
+<audio id="sound-in" src="https://res.cloudinary.com/dsk97v9p5/video/upload/v1692124500/internal_notification.mp3" preload="auto"></audio>
+<audio id="sound-out" src="https://res.cloudinary.com/dsk97v9p5/video/upload/v1692124505/external_notification.mp3" preload="auto"></audio>
+
 <div id="main-view">
     <div class="app-header">
         <span style="font-weight: bold; font-size: 18px;">Eltaweel Chat</span>
@@ -87,14 +90,11 @@
 <div id="reg-modal" class="modal">
     <div class="modal-box">
         <h3>تعديل كودي الشخصي</h3>
-        <p style="color: #666; font-size: 14px;">أدخل رقمك الجديد</p>
         <input type="number" id="my-phone-input" class="modal-input" placeholder="01xxxxxxxxx">
         <button class="modal-btn" onclick="saveMyPhone()">حفظ الكود</button>
         <p onclick="toggleModal('reg-modal', false)" style="margin-top: 15px; color: red; cursor: pointer; font-size: 14px;">إلغاء</p>
     </div>
 </div>
-
-<audio id="notif-sound" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <script>
     const config = {
@@ -109,7 +109,7 @@
 
     firebase.initializeApp(config);
     const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
-    let myUid, myPhone, activeChatId, editingFriendId = null;
+    let myUid, myPhone, activeChatId, lastCount = 0, editingFriendId = null;
 
     function openApp() {
         document.getElementById('gate').style.opacity = '0';
@@ -117,12 +117,17 @@
             document.getElementById('gate').style.display = 'none';
             document.getElementById('main-view').style.display = 'flex';
         }, 500);
+        // تفعيل الصوت عند الضغط لأول مرة لتجاوز حماية المتصفح
+        const s1 = document.getElementById('sound-in');
+        const s2 = document.getElementById('sound-out');
+        s1.play().then(() => { s1.pause(); s1.currentTime = 0; });
+        s2.play().then(() => { s2.pause(); s2.currentTime = 0; });
         if ("Notification" in window) Notification.requestPermission();
     }
 
     function toggleModal(id, show) {
         document.getElementById(id).style.display = show ? 'flex' : 'none';
-        if (!show) editingFriendId = null;
+        if(!show) editingFriendId = null;
     }
 
     auth.onAuthStateChanged(user => {
@@ -144,9 +149,8 @@
 
     function checkProfile() {
         db.collection("users").doc(myUid).get().then(doc => {
-            if (!doc.exists) {
-                toggleModal('reg-modal', true);
-            } else {
+            if (!doc.exists) toggleModal('reg-modal', true);
+            else {
                 myPhone = doc.data().phone;
                 document.getElementById('my-info').innerText = "كودي: " + myPhone;
                 loadFriends();
@@ -156,7 +160,7 @@
 
     function saveMyPhone() {
         const p = document.getElementById('my-phone-input').value;
-        if (p.length < 5) return alert("الرقم قصير جداً");
+        if (p.length < 5) return alert("الرقم قصير!");
         db.collection("users").doc(myUid).set({phone: p, uid: myUid}).then(() => location.reload());
     }
 
@@ -197,7 +201,6 @@
         const newName = document.getElementById('friend-phone').value;
         db.collection("users").doc(myUid).collection("myChats").doc(editingFriendId).update({nickname: newName}).then(() => {
             toggleModal('add-modal', false);
-            // Reset modal for next time
             document.getElementById('modal-title').innerText = "إضافة صديق جديد";
             document.getElementById('friend-phone').type = "number";
             document.getElementById('modal-submit').onclick = confirmAdd;
@@ -207,11 +210,9 @@
     function confirmAdd() {
         const p = document.getElementById('friend-phone').value;
         db.collection("users").where("phone", "==", p).get().then(snap => {
-            if (snap.empty) return alert("هذا الرقم غير مسجل!");
+            if (snap.empty) return alert("غير مسجل!");
             const f = snap.docs[0].data();
-            db.collection("users").doc(myUid).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p}).then(() => {
-                toggleModal('add-modal', false);
-            });
+            db.collection("users").doc(myUid).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p}).then(() => toggleModal('add-modal', false));
         });
     }
 
@@ -219,7 +220,7 @@
         activeChatId = [myUid, id].sort().join("_");
         document.getElementById('chat-view').style.display = 'flex';
         document.getElementById('chat-title').innerText = name;
-        syncMessages();
+        syncMessages(name);
     }
 
     function closeChat() {
@@ -227,10 +228,10 @@
         activeChatId = null;
     }
 
-    function syncMessages() {
+    function syncMessages(fName) {
         db.collection("chats").doc(activeChatId).collection("messages").orderBy("time").onSnapshot(snap => {
             const container = document.getElementById('msg-container');
-            const isNewMessage = snap.docChanges().some(change => change.type === 'added');
+            const addedDocs = snap.docChanges().filter(change => change.type === 'added');
             
             container.innerHTML = "";
             snap.forEach(d => {
@@ -244,13 +245,19 @@
             });
             container.scrollTop = container.scrollHeight;
 
-            // نظام الإشعارات إذا كان التطبيق مغلق أو في الخلفية
-            if (isNewMessage && document.hidden && snap.docs.length > 0) {
-                const lastMsg = snap.docs[snap.docs.length - 1].data();
+            // التحكم في الصوت والإشعارات
+            if (addedDocs.length > 0 && snap.size > lastCount) {
+                const lastMsg = snap.docs[snap.size - 1].data();
                 if (lastMsg.sender !== myUid) {
-                    new Notification("شات الطويل: رسالة جديدة", { body: lastMsg.text });
+                    if (!document.hidden) {
+                        document.getElementById('sound-in').play(); // صوت داخل التطبيق
+                    } else {
+                        document.getElementById('sound-out').play(); // صوت خارج التطبيق
+                        new Notification("شات الطويل: " + fName, { body: lastMsg.text });
+                    }
                 }
             }
+            lastCount = snap.size;
         });
     }
 
