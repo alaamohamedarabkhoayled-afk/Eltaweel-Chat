@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل Pro</title>
+    <title>شات الطويل Pro - الإصدار النهائي</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -14,7 +14,7 @@
         * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; background: var(--main-bg); overflow: hidden; }
 
-        #gate { position: fixed; inset: 0; background: var(--main-bg); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; transition: 0.5s; }
+        #gate { position: fixed; inset: 0; background: var(--main-bg); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; }
         .gate-btn { background: var(--accent); color: white; border: none; padding: 15px 60px; border-radius: 50px; font-size: 20px; font-weight: bold; cursor: pointer; }
 
         .app-header { background: var(--blue); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
@@ -39,6 +39,9 @@
         .modal-btn { background: var(--accent); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
         .add-btn { position: fixed; bottom: 30px; left: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; }
+        
+        /* زر إيقاف الرنين */
+        #stop-call-btn { display: none; background: #ff5252; color: white; border: none; padding: 8px 15px; border-radius: 20px; font-size: 12px; cursor: pointer; margin-right: 10px; }
     </style>
 </head>
 <body>
@@ -48,8 +51,8 @@
     <button class="gate-btn" onclick="openApp()">تفعيل ودخول 🔓</button>
 </div>
 
-<audio id="snd-msg" src="https://ui-ex.com/images/notification-beep-7.mp3" preload="auto"></audio>
-<audio id="snd-call" src="https://www.soundjay.com/phone/phone-calling-1.mp3" preload="auto" loop></audio>
+<audio id="snd-msg" src="https://assets.mixkit.co/active_storage/sfx/2358/2358-preview.mp3" preload="auto"></audio>
+<audio id="snd-call" src="https://assets.mixkit.co/active_storage/sfx/1359/1359-preview.mp3" preload="auto" loop></audio>
 
 <div id="main-view">
     <div class="app-header">
@@ -63,7 +66,8 @@
 <div id="chat-view">
     <div class="app-header">
         <button onclick="closeChat()" style="background:none; border:none; color:white; font-size:24px;">➡️</button>
-        <span id="chat-title" style="font-weight: bold;">المحادثة</span>
+        <span id="chat-title" style="flex:1; margin-right:10px; font-weight: bold;">المحادثة</span>
+        <button id="stop-call-btn" onclick="stopCall()">إيقاف الرن 📵</button>
         <button onclick="sendCallAlert()" style="background:none; border:none; color:white; font-size:22px; cursor:pointer;">📞</button>
     </div>
     <div class="msg-area" id="msg-container"></div>
@@ -73,24 +77,20 @@
     </div>
 </div>
 
-<div id="add-modal" class="modal">
-    <div class="modal-box">
-        <h3 id="modal-title">إضافة صديق جديد</h3>
-        <input type="text" id="friend-phone" class="modal-input" placeholder="01xxxxxxxxx">
-        <button class="modal-btn" id="modal-submit" onclick="confirmAdd()">تأكيد</button>
-        <p onclick="toggleModal('add-modal', false)" style="margin-top: 15px; color: red; cursor: pointer;">إلغاء</p>
-    </div>
-</div>
-
-<div id="reg-modal" class="modal">
-    <div class="modal-box">
-        <h3>تعديل الكود الشخصي</h3>
-        <input type="number" id="my-phone-input" class="modal-input" placeholder="رقمك الجديد">
-        <button class="modal-btn" onclick="saveMyPhone()">حفظ</button>
-    </div>
-</div>
-
 <script>
+    // إنشاء ملف Service Worker برمجياً للعمل في الخلفية
+    const swCode = `
+        self.addEventListener('push', function(event) {
+            const data = event.data.json();
+            event.waitUntil(self.registration.showNotification(data.title, { body: data.body }));
+        });
+    `;
+    const blob = new Blob([swCode], {type: 'text/javascript'});
+    const swUrl = URL.createObjectURL(blob);
+    if ('serviceWorker' in navigator) {
+        navigator.serviceWorker.register(swUrl).then(() => console.log("Background Service Ready"));
+    }
+
     const config = {
         apiKey: "AIzaSyDRdboeLuFYh_paYHem0SbgCar4bGgBFSI",
         authDomain: "eltaweel-chat.firebaseapp.com",
@@ -103,46 +103,26 @@
 
     firebase.initializeApp(config);
     const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
-    let myUid, myPhone, activeChatId, lastSize = 0, editingId = null;
+    let myUid, myPhone, activeChatId, lastSize = 0, isCalling = false;
 
     function openApp() {
         document.getElementById('gate').style.display = 'none';
         document.getElementById('main-view').style.display = 'flex';
-        // تفعيل الأصوات
-        document.getElementById('snd-msg').play().then(() => { document.getElementById('snd-msg').pause(); });
-        document.getElementById('snd-call').play().then(() => { document.getElementById('snd-call').pause(); });
-        
+        document.getElementById('snd-msg').play().then(() => document.getElementById('snd-msg').pause());
+        document.getElementById('snd-call').play().then(() => document.getElementById('snd-call').pause());
         if ("Notification" in window) Notification.requestPermission();
-        if (navigator.clearAppBadge) navigator.clearAppBadge();
-    }
-
-    function toggleModal(id, show) {
-        document.getElementById(id).style.display = show ? 'flex' : 'none';
-        if(!show) { editingId = null; document.getElementById('modal-title').innerText = "إضافة صديق جديد"; }
     }
 
     auth.onAuthStateChanged(user => {
-        if (user) {
-            myUid = user.uid;
-            rtdb.ref('/status/' + myUid).onDisconnect().set('offline').then(() => rtdb.ref('/status/' + myUid).set('online'));
-            checkProfile();
-        } else auth.signInAnonymously();
+        if (user) { myUid = user.uid; checkProfile(); }
+        else auth.signInAnonymously();
     });
 
     function checkProfile() {
         db.collection("users").doc(myUid).get().then(doc => {
             if (!doc.exists) toggleModal('reg-modal', true);
-            else {
-                myPhone = doc.data().phone;
-                document.getElementById('my-info').innerText = "كودي: " + myPhone;
-                loadFriends();
-            }
+            else { myPhone = doc.data().phone; document.getElementById('my-info').innerText = "كودي: " + myPhone; loadFriends(); }
         });
-    }
-
-    function saveMyPhone() {
-        const p = document.getElementById('my-phone-input').value;
-        if (p) db.collection("users").doc(myUid).set({phone: p, uid: myUid}).then(() => location.reload());
     }
 
     function loadFriends() {
@@ -153,33 +133,10 @@
                 const f = doc.data();
                 const div = document.createElement('div');
                 div.className = 'friend-card';
-                div.onclick = (e) => { if(!e.target.classList.contains('edit-pen')) openChat(f.id, f.nickname); };
-                div.innerHTML = `<div style="flex:1"><b>${f.nickname}</b></div>
-                                 <div class="edit-pen" onclick="prepareEdit('${f.id}','${f.nickname}')">✏️</div>`;
+                div.onclick = (e) => openChat(f.id, f.nickname);
+                div.innerHTML = `<b>${f.nickname}</b>`;
                 list.appendChild(div);
             });
-        });
-    }
-
-    function prepareEdit(id, name) {
-        editingId = id;
-        document.getElementById('modal-title').innerText = "تعديل الاسم";
-        document.getElementById('friend-phone').value = name;
-        document.getElementById('modal-submit').onclick = confirmEdit;
-        toggleModal('add-modal', true);
-    }
-
-    function confirmEdit() {
-        const n = document.getElementById('friend-phone').value;
-        db.collection("users").doc(myUid).collection("myChats").doc(editingId).update({nickname: n}).then(() => toggleModal('add-modal', false));
-    }
-
-    function confirmAdd() {
-        const p = document.getElementById('friend-phone').value;
-        db.collection("users").where("phone", "==", p).get().then(s => {
-            if (s.empty) return alert("غير مسجل!");
-            const f = s.docs[0].data();
-            db.collection("users").doc(myUid).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p}).then(() => toggleModal('add-modal', false));
         });
     }
 
@@ -187,17 +144,8 @@
         activeChatId = [myUid, id].sort().join("_");
         document.getElementById('chat-view').style.display = 'flex';
         document.getElementById('chat-title').innerText = name;
-        // إيقاف الرنين بمجرد فتح الشات
-        document.getElementById('snd-call').pause();
-        document.getElementById('snd-call').currentTime = 0;
-        if (navigator.clearAppBadge) navigator.clearAppBadge();
+        stopCall(); // إيقاف أي رنين عند دخول الشات
         syncMsgs(name);
-    }
-
-    function closeChat() { 
-        document.getElementById('chat-view').style.display = 'none'; 
-        activeChatId = null;
-        document.getElementById('snd-call').pause(); 
     }
 
     function syncMsgs(fName) {
@@ -207,27 +155,20 @@
             snap.forEach(d => {
                 const m = d.data();
                 const isMe = m.sender === myUid;
-                if (!isMe && m.status !== "read") d.ref.update({status: "read"});
                 
-                let style = m.type === 'call' ? 'background:#ffebee;border:1px solid #ff1744;font-weight:bold;' : '';
-                box.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}" style="${style}">
-                                    ${m.text} <span class="ticks">${isMe ? (m.status==='read'?'✓✓':'✓') : ''}</span></div>`;
+                // لو وصلت رسالة إيقاف رنين
+                if (m.type === 'stop-call') { stopCallLocally(); return; }
+
+                let style = m.type === 'call' ? 'background:#ffebee;border:1px solid #ff1744' : '';
+                box.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}" style="${style}">${m.text}</div>`;
             });
             box.scrollTop = box.scrollHeight;
             
-            if (snap.size > lastSize && snap.size > 0) {
+            if (snap.size > lastSize) {
                 const lastMsg = snap.docs[snap.size-1].data();
                 if (lastMsg.sender !== myUid) {
-                    if(lastMsg.type === 'call') { 
-                        document.getElementById('snd-call').play().catch(e => console.log("الصوت محظور"));
-                    } else { 
-                        document.getElementById('snd-msg').play().catch(e => console.log("الصوت محظور"));
-                    }
-                    
-                    if(document.hidden) {
-                        new Notification(fName, { body: lastMsg.text, icon: 'https://cdn-icons-png.flaticon.com/512/134/134914.png' });
-                        if (navigator.setAppBadge) navigator.setAppBadge(1);
-                    }
+                    if (lastMsg.type === 'call') document.getElementById('snd-call').play();
+                    else document.getElementById('snd-msg').play();
                 }
             }
             lastSize = snap.size;
@@ -235,19 +176,39 @@
     }
 
     function sendCallAlert() {
+        isCalling = true;
+        document.getElementById('stop-call-btn').style.display = 'block';
         db.collection("chats").doc(activeChatId).collection("messages").add({
-            text: "📞 رنين.. يحاول الاتصال بك الآن!", sender: myUid, type: "call", status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
+            text: "📞 رنين مستمر...", sender: myUid, type: "call", time: firebase.firestore.FieldValue.serverTimestamp()
         });
+    }
+
+    function stopCall() {
+        if (activeChatId) {
+            db.collection("chats").doc(activeChatId).collection("messages").add({
+                text: "📵 تم إنهاء الرنين", sender: myUid, type: "stop-call", time: firebase.firestore.FieldValue.serverTimestamp()
+            });
+        }
+        stopCallLocally();
+    }
+
+    function stopCallLocally() {
+        const s = document.getElementById('snd-call');
+        s.pause(); s.currentTime = 0;
+        document.getElementById('stop-call-btn').style.display = 'none';
+        isCalling = false;
     }
 
     function send() {
         const t = document.getElementById('msg-input').value;
         if (!t) return;
         db.collection("chats").doc(activeChatId).collection("messages").add({
-            text: t, sender: myUid, type: "text", status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
+            text: t, sender: myUid, type: "text", time: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('msg-input').value = "";
     }
+    
+    function closeChat() { document.getElementById('chat-view').style.display = 'none'; stopCall(); }
 </script>
 </body>
 </html>
