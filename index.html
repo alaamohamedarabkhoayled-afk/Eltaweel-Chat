@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل - الإصدار المصلح</title>
+    <title>شات الطويل - حل نهائي</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -15,19 +15,19 @@
 
         /* شاشة التفعيل - مطابقة تماماً للصور */
         #activation-screen { 
-            position: fixed; inset: 0; background: var(--primary); z-index: 9999; 
+            position: fixed; inset: 0; background: var(--primary); z-index: 99999; 
             display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;
         }
         .btn-activate { 
             background: var(--accent); color: white; border: none; padding: 18px 60px; 
             border-radius: 40px; font-size: 22px; font-weight: bold; cursor: pointer; 
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4); z-index: 10000;
+            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
         }
 
         .header { background: var(--blue); padding: 12px; display: flex; justify-content: space-between; align-items: center; }
         #chat-ui { display: none; position: fixed; inset: 0; background: #efe7de; z-index: 2000; flex-direction: column; }
         #msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; color: black; }
-        .bubble { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 15px; position: relative; }
+        .bubble { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 15px; }
         .sent { background: #dcf8c6; align-self: flex-start; }
         .received { background: white; align-self: flex-end; }
     </style>
@@ -38,11 +38,11 @@
     <img src="https://cdn-icons-png.flaticon.com/512/134/134914.png" width="120" style="margin-bottom:20px;">
     <h2>مرحباً بك في شات الطويل</h2>
     <p style="margin-bottom: 40px; opacity: 0.9;">اضغط بالأسفل لتفعيل الصوت والاشعارات والدخول</p>
-    <button class="btn-activate" id="main-entry-btn">تفعيل ودخول 🔐</button>
+    
+    <button class="btn-activate" onclick="document.getElementById('activation-screen').style.setProperty('display', 'none', 'important'); startAudio();">تفعيل ودخول 🔐</button>
 </div>
 
-<audio id="s-in" src="https://res.cloudinary.com/dsk97v9p5/video/upload/v1692124500/internal_notification.mp3" preload="auto"></audio>
-<audio id="s-out" src="https://res.cloudinary.com/dsk97v9p5/video/upload/v1692124505/external_notification.mp3" preload="auto"></audio>
+<audio id="s-in" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
 
 <div id="main-app">
     <div class="header">
@@ -81,18 +81,12 @@
     const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
     let myUid, myPhone, activeChat, mCount = 0;
 
-    // الربط القوي للزرار لضمان التشغيل
-    document.getElementById('main-entry-btn').addEventListener('click', function() {
-        console.log("Button Clicked!");
-        document.getElementById('activation-screen').style.display = 'none';
-        
-        // طلب الأذونات فور الضغط
+    // دالة تفعيل الصوت المنفصلة
+    function startAudio() {
         if ("Notification" in window) Notification.requestPermission();
-        
-        // تفعيل الصوت
         const s = document.getElementById('s-in');
-        s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => {});
-    });
+        s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => console.log("Audio Init"));
+    }
 
     auth.onAuthStateChanged(user => {
         if (user) {
@@ -137,22 +131,20 @@
         document.getElementById('main-app').style.display = 'none';
         document.getElementById('chat-ui').style.display = 'flex';
         document.getElementById('target-title').innerText = name;
-        sync(name);
+        sync();
     }
 
-    function sync(fName) {
+    function sync() {
         db.collection("chats").doc(activeChat).collection("messages").orderBy("time").onSnapshot(snap => {
             const area = document.getElementById('msg-area');
             area.innerHTML = "";
             snap.forEach(d => {
                 const m = d.data();
                 const isMe = m.sender === myUid;
-                if (!isMe && m.status !== "read") d.ref.update({status: "read"});
                 area.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}">${m.text}</div>`;
             });
             if (snap.size > mCount && snap.docs[snap.size-1].data().sender !== myUid) {
-                if (!document.hidden) document.getElementById('s-in').play();
-                else document.getElementById('s-out').play();
+                document.getElementById('s-in').play().catch(()=>{});
             }
             mCount = snap.size;
             area.scrollTop = area.scrollHeight;
