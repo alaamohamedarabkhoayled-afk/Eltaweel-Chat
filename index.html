@@ -15,14 +15,14 @@
         body, html { margin: 0; padding: 0; height: 100%; font-family: 'Segoe UI', sans-serif; background: var(--main-bg); overflow: hidden; }
 
         #gate { position: fixed; inset: 0; background: var(--main-bg); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; transition: 0.5s; }
-        .gate-btn { background: var(--accent); color: white; border: none; padding: 15px 60px; border-radius: 50px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
+        .gate-btn { background: var(--accent); color: white; border: none; padding: 15px 60px; border-radius: 50px; font-size: 20px; font-weight: bold; cursor: pointer; }
 
-        .app-header { background: var(--blue); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
+        .app-header { background: var(--blue); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
         .my-code-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 15px; font-size: 13px; font-weight: bold; cursor: pointer; }
 
         #main-view { display: none; height: 100vh; flex-direction: column; background: #f0f2f5; }
         .chat-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .friend-card { background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
+        .friend-card { background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative; }
         .edit-pen { position: absolute; left: 15px; top: 18px; font-size: 18px; opacity: 0.6; }
 
         #chat-view { display: none; position: fixed; inset: 0; background: #e5ddd5; z-index: 5000; flex-direction: column; }
@@ -33,13 +33,12 @@
         .ticks { font-size: 10px; margin-right: 5px; color: #999; }
         .read .ticks { color: #34b7f1; }
 
-        /* ستايل المودال (الذي ظهر في صورتك) */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; }
         .modal-box { background: white; width: 90%; max-width: 350px; border-radius: 20px; padding: 25px; text-align: center; }
         .modal-input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; margin: 15px 0; font-size: 16px; text-align: center; outline: none; }
         .modal-btn { background: var(--accent); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
-        .add-btn { position: fixed; bottom: 30px; left: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
+        .add-btn { position: fixed; bottom: 30px; left: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; }
     </style>
 </head>
 <body>
@@ -49,8 +48,8 @@
     <button class="gate-btn" onclick="openApp()">تفعيل ودخول 🔓</button>
 </div>
 
-<audio id="snd-msg" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-<audio id="snd-call" src="https://actions.google.com/sounds/v1/alarms/phone_ringing_loop.ogg" preload="auto"></audio>
+<audio id="snd-msg" src="https://ui-ex.com/images/notification-beep-7.mp3" preload="auto"></audio>
+<audio id="snd-call" src="https://www.soundjay.com/phone/phone-calling-1.mp3" preload="auto" loop></audio>
 
 <div id="main-view">
     <div class="app-header">
@@ -114,7 +113,6 @@
         document.getElementById('snd-call').play().then(() => { document.getElementById('snd-call').pause(); });
         
         if ("Notification" in window) Notification.requestPermission();
-        // مسح الشارة عند الدخول
         if (navigator.clearAppBadge) navigator.clearAppBadge();
     }
 
@@ -189,12 +187,18 @@
         activeChatId = [myUid, id].sort().join("_");
         document.getElementById('chat-view').style.display = 'flex';
         document.getElementById('chat-title').innerText = name;
-        // مسح الشارة عند فتح المحادثة
+        // إيقاف الرنين بمجرد فتح الشات
+        document.getElementById('snd-call').pause();
+        document.getElementById('snd-call').currentTime = 0;
         if (navigator.clearAppBadge) navigator.clearAppBadge();
         syncMsgs(name);
     }
 
-    function closeChat() { document.getElementById('chat-view').style.display = 'none'; activeChatId = null; }
+    function closeChat() { 
+        document.getElementById('chat-view').style.display = 'none'; 
+        activeChatId = null;
+        document.getElementById('snd-call').pause(); 
+    }
 
     function syncMsgs(fName) {
         db.collection("chats").doc(activeChatId).collection("messages").orderBy("time").onSnapshot(snap => {
@@ -205,9 +209,7 @@
                 const isMe = m.sender === myUid;
                 if (!isMe && m.status !== "read") d.ref.update({status: "read"});
                 
-                // تمييز رسائل الاتصال بلون مختلف
                 let style = m.type === 'call' ? 'background:#ffebee;border:1px solid #ff1744;font-weight:bold;' : '';
-                
                 box.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}" style="${style}">
                                     ${m.text} <span class="ticks">${isMe ? (m.status==='read'?'✓✓':'✓') : ''}</span></div>`;
             });
@@ -216,13 +218,14 @@
             if (snap.size > lastSize && snap.size > 0) {
                 const lastMsg = snap.docs[snap.size-1].data();
                 if (lastMsg.sender !== myUid) {
-                    // تشغيل الصوت المناسب
-                    if(lastMsg.type === 'call') { document.getElementById('snd-call').play(); } 
-                    else { document.getElementById('snd-msg').play(); }
+                    if(lastMsg.type === 'call') { 
+                        document.getElementById('snd-call').play().catch(e => console.log("الصوت محظور"));
+                    } else { 
+                        document.getElementById('snd-msg').play().catch(e => console.log("الصوت محظور"));
+                    }
                     
                     if(document.hidden) {
                         new Notification(fName, { body: lastMsg.text, icon: 'https://cdn-icons-png.flaticon.com/512/134/134914.png' });
-                        // تفعيل الشارة عند وصول رسالة جديدة والموقع مغلق
                         if (navigator.setAppBadge) navigator.setAppBadge(1);
                     }
                 }
