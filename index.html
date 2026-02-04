@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل Pro - النسخة النهائية الشغالة</title>
+    <title>شات الطويل Pro</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
@@ -17,45 +17,45 @@
         #gate { position: fixed; inset: 0; background: var(--main-bg); z-index: 10000; display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; color: white; transition: 0.5s; }
         .gate-btn { background: var(--accent); color: white; border: none; padding: 15px 60px; border-radius: 50px; font-size: 20px; font-weight: bold; cursor: pointer; box-shadow: 0 5px 20px rgba(0,0,0,0.4); }
 
-        .app-header { background: var(--blue); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; }
+        .app-header { background: var(--blue); color: white; padding: 12px 15px; display: flex; justify-content: space-between; align-items: center; box-shadow: 0 2px 5px rgba(0,0,0,0.1); }
         .my-code-badge { background: rgba(255,255,255,0.2); padding: 4px 10px; border-radius: 15px; font-size: 13px; font-weight: bold; cursor: pointer; }
 
         #main-view { display: none; height: 100vh; flex-direction: column; background: #f0f2f5; }
         .chat-list { flex: 1; overflow-y: auto; padding: 10px; }
-        .friend-card { background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative; }
-        .status-dot { width: 12px; height: 12px; border-radius: 50%; border: 2px solid white; position: absolute; bottom: 2px; left: 2px; background: #bbb; }
-        .online .status-dot { background: var(--accent); }
+        .friend-card { background: white; margin-bottom: 8px; padding: 12px; border-radius: 12px; display: flex; align-items: center; gap: 15px; cursor: pointer; position: relative; box-shadow: 0 1px 3px rgba(0,0,0,0.05); }
         .edit-pen { position: absolute; left: 15px; top: 18px; font-size: 18px; opacity: 0.6; }
 
         #chat-view { display: none; position: fixed; inset: 0; background: #e5ddd5; z-index: 5000; flex-direction: column; }
         .msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 8px; }
-        .bubble { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 15px; position: relative; }
+        .bubble { max-width: 80%; padding: 8px 12px; border-radius: 10px; font-size: 15px; position: relative; box-shadow: 0 1px 1px rgba(0,0,0,0.1); }
         .sent { background: var(--bubble-me); align-self: flex-start; }
         .received { background: white; align-self: flex-end; }
         .ticks { font-size: 10px; margin-right: 5px; color: #999; }
         .read .ticks { color: #34b7f1; }
 
+        /* ستايل المودال (الذي ظهر في صورتك) */
         .modal { display: none; position: fixed; inset: 0; background: rgba(0,0,0,0.6); z-index: 10000; align-items: center; justify-content: center; }
         .modal-box { background: white; width: 90%; max-width: 350px; border-radius: 20px; padding: 25px; text-align: center; }
-        .modal-input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; margin: 15px 0; font-size: 16px; text-align: center; }
+        .modal-input { width: 100%; padding: 12px; border: 2px solid #eee; border-radius: 10px; margin: 15px 0; font-size: 16px; text-align: center; outline: none; }
         .modal-btn { background: var(--accent); color: white; border: none; width: 100%; padding: 12px; border-radius: 10px; font-weight: bold; cursor: pointer; }
 
-        .add-btn { position: fixed; bottom: 30px; left: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; }
+        .add-btn { position: fixed; bottom: 30px; left: 30px; width: 60px; height: 60px; border-radius: 50%; background: var(--accent); color: white; border: none; font-size: 30px; box-shadow: 0 4px 15px rgba(0,0,0,0.3); }
     </style>
 </head>
 <body>
 
 <div id="gate">
-    <h2 style="margin-bottom: 30px;">شات الطويل المطور</h2>
+    <h2 style="margin-bottom: 30px;">شات الطويل Pro</h2>
     <button class="gate-btn" onclick="openApp()">تفعيل ودخول 🔓</button>
 </div>
 
 <audio id="snd-msg" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
+<audio id="snd-call" src="https://actions.google.com/sounds/v1/alarms/phone_ringing_loop.ogg" preload="auto"></audio>
 
 <div id="main-view">
     <div class="app-header">
         <span>Eltaweel Chat</span>
-        <div id="my-info" class="my-code-badge" onclick="toggleModal('reg-modal', true)">كودي: ..</div>
+        <div id="my-info" class="my-code-badge" onclick="toggleModal('reg-modal', true)">جاري التحميل...</div>
     </div>
     <div class="chat-list" id="friends-list"></div>
     <button class="add-btn" onclick="toggleModal('add-modal', true)">+</button>
@@ -64,22 +64,22 @@
 <div id="chat-view">
     <div class="app-header">
         <button onclick="closeChat()" style="background:none; border:none; color:white; font-size:24px;">➡️</button>
-        <span id="chat-title">المحادثة</span>
-        <div style="width: 30px;"></div>
+        <span id="chat-title" style="font-weight: bold;">المحادثة</span>
+        <button onclick="sendCallAlert()" style="background:none; border:none; color:white; font-size:22px; cursor:pointer;">📞</button>
     </div>
     <div class="msg-area" id="msg-container"></div>
     <div style="background: #f0f0f0; padding: 10px; display: flex; gap: 10px;">
-        <input type="text" id="msg-input" style="flex: 1; padding: 12px; border-radius: 25px; border: none;" placeholder="اكتب رسالة...">
-        <button onclick="send()" style="background: none; border: none; font-size: 28px;">🕊️</button>
+        <input type="text" id="msg-input" style="flex: 1; padding: 12px; border-radius: 25px; border: none; outline: none;" placeholder="اكتب رسالة...">
+        <button onclick="send()" style="background: none; border: none; font-size: 28px; cursor: pointer;">🕊️</button>
     </div>
 </div>
 
 <div id="add-modal" class="modal">
     <div class="modal-box">
-        <h3 id="modal-title">إضافة صديق</h3>
+        <h3 id="modal-title">إضافة صديق جديد</h3>
         <input type="text" id="friend-phone" class="modal-input" placeholder="01xxxxxxxxx">
         <button class="modal-btn" id="modal-submit" onclick="confirmAdd()">تأكيد</button>
-        <p onclick="toggleModal('add-modal', false)" style="color: red; cursor: pointer;">إلغاء</p>
+        <p onclick="toggleModal('add-modal', false)" style="margin-top: 15px; color: red; cursor: pointer;">إلغاء</p>
     </div>
 </div>
 
@@ -109,21 +109,18 @@
     function openApp() {
         document.getElementById('gate').style.display = 'none';
         document.getElementById('main-view').style.display = 'flex';
+        // تفعيل الأصوات
+        document.getElementById('snd-msg').play().then(() => { document.getElementById('snd-msg').pause(); });
+        document.getElementById('snd-call').play().then(() => { document.getElementById('snd-call').pause(); });
         
-        // تفعيل الصوت "إجباري" عند الضغط
-        const audio = document.getElementById('snd-msg');
-        audio.play().then(() => { audio.pause(); audio.currentTime = 0; });
-        
-        if ("Notification" in window) {
-            Notification.requestPermission().then(permission => {
-                if (permission !== "granted") alert("برجاء تفعيل الإشعارات من إعدادات المتصفح ليصلك تنبيه بالرسائل!");
-            });
-        }
+        if ("Notification" in window) Notification.requestPermission();
+        // مسح الشارة عند الدخول
+        if (navigator.clearAppBadge) navigator.clearAppBadge();
     }
 
     function toggleModal(id, show) {
         document.getElementById(id).style.display = show ? 'flex' : 'none';
-        if(!show) editingId = null;
+        if(!show) { editingId = null; document.getElementById('modal-title').innerText = "إضافة صديق جديد"; }
     }
 
     auth.onAuthStateChanged(user => {
@@ -192,6 +189,8 @@
         activeChatId = [myUid, id].sort().join("_");
         document.getElementById('chat-view').style.display = 'flex';
         document.getElementById('chat-title').innerText = name;
+        // مسح الشارة عند فتح المحادثة
+        if (navigator.clearAppBadge) navigator.clearAppBadge();
         syncMsgs(name);
     }
 
@@ -205,18 +204,26 @@
                 const m = d.data();
                 const isMe = m.sender === myUid;
                 if (!isMe && m.status !== "read") d.ref.update({status: "read"});
-                box.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}">
+                
+                // تمييز رسائل الاتصال بلون مختلف
+                let style = m.type === 'call' ? 'background:#ffebee;border:1px solid #ff1744;font-weight:bold;' : '';
+                
+                box.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}" style="${style}">
                                     ${m.text} <span class="ticks">${isMe ? (m.status==='read'?'✓✓':'✓') : ''}</span></div>`;
             });
             box.scrollTop = box.scrollHeight;
             
-            // تشغيل الصوت والإشعار
             if (snap.size > lastSize && snap.size > 0) {
                 const lastMsg = snap.docs[snap.size-1].data();
                 if (lastMsg.sender !== myUid) {
-                    document.getElementById('snd-msg').play().catch(e => console.log("Audio play failed"));
+                    // تشغيل الصوت المناسب
+                    if(lastMsg.type === 'call') { document.getElementById('snd-call').play(); } 
+                    else { document.getElementById('snd-msg').play(); }
+                    
                     if(document.hidden) {
-                        new Notification("رسالة جديدة من " + fName, { body: lastMsg.text, icon: 'https://cdn-icons-png.flaticon.com/512/134/134914.png' });
+                        new Notification(fName, { body: lastMsg.text, icon: 'https://cdn-icons-png.flaticon.com/512/134/134914.png' });
+                        // تفعيل الشارة عند وصول رسالة جديدة والموقع مغلق
+                        if (navigator.setAppBadge) navigator.setAppBadge(1);
                     }
                 }
             }
@@ -224,11 +231,17 @@
         });
     }
 
+    function sendCallAlert() {
+        db.collection("chats").doc(activeChatId).collection("messages").add({
+            text: "📞 رنين.. يحاول الاتصال بك الآن!", sender: myUid, type: "call", status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
+        });
+    }
+
     function send() {
         const t = document.getElementById('msg-input').value;
         if (!t) return;
         db.collection("chats").doc(activeChatId).collection("messages").add({
-            text: t, sender: myUid, status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
+            text: t, sender: myUid, type: "text", status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
         });
         document.getElementById('msg-input').value = "";
     }
