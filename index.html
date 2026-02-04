@@ -3,71 +3,57 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>شات الطويل - حل نهائي</title>
+    <title>شات الطويل - النسخة النهائية</title>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-app-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-auth-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-firestore-compat.js"></script>
     <script src="https://www.gstatic.com/firebasejs/9.6.10/firebase-database-compat.js"></script>
 
     <style>
-        :root { --primary: #004d40; --accent: #2ecc71; --blue: #34b7f1; }
-        body { font-family: 'Segoe UI', Tahoma, sans-serif; background: var(--primary); margin: 0; color: white; }
+        :root { --primary: #004d40; --accent: #2ecc71; }
+        body, html { margin: 0; padding: 0; width: 100%; height: 100%; font-family: sans-serif; background: var(--primary); color: white; overflow: hidden; }
 
-        /* شاشة التفعيل - مطابقة تماماً للصور */
-        #activation-screen { 
-            position: fixed; inset: 0; background: var(--primary); z-index: 99999; 
-            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center; padding: 20px;
+        /* شاشة التفعيل - إجبارية الظهور والعمل */
+        #gate { 
+            position: fixed; top: 0; left: 0; width: 100%; height: 100%; 
+            background: var(--primary); z-index: 999999; 
+            display: flex; flex-direction: column; align-items: center; justify-content: center; text-align: center;
         }
-        .btn-activate { 
-            background: var(--accent); color: white; border: none; padding: 18px 60px; 
-            border-radius: 40px; font-size: 22px; font-weight: bold; cursor: pointer; 
-            box-shadow: 0 6px 20px rgba(0,0,0,0.4);
+        .enter-btn { 
+            background: var(--accent); color: white; border: none; padding: 20px 80px; 
+            border-radius: 50px; font-size: 24px; font-weight: bold; cursor: pointer; 
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5); -webkit-tap-highlight-color: transparent;
         }
 
-        .header { background: var(--blue); padding: 12px; display: flex; justify-content: space-between; align-items: center; }
-        #chat-ui { display: none; position: fixed; inset: 0; background: #efe7de; z-index: 2000; flex-direction: column; }
-        #msg-area { flex: 1; overflow-y: auto; padding: 15px; display: flex; flex-direction: column; gap: 10px; color: black; }
-        .bubble { padding: 10px 15px; border-radius: 15px; max-width: 75%; font-size: 15px; }
-        .sent { background: #dcf8c6; align-self: flex-start; }
-        .received { background: white; align-self: flex-end; }
+        #main-ui { display: none; height: 100vh; flex-direction: column; background: #efe7de; color: black; }
+        .header { background: #34b7f1; color: white; padding: 15px; font-weight: bold; display: flex; justify-content: space-between; }
+        #list { flex: 1; overflow-y: auto; background: white; }
     </style>
 </head>
 <body>
 
-<div id="activation-screen">
-    <img src="https://cdn-icons-png.flaticon.com/512/134/134914.png" width="120" style="margin-bottom:20px;">
-    <h2>مرحباً بك في شات الطويل</h2>
-    <p style="margin-bottom: 40px; opacity: 0.9;">اضغط بالأسفل لتفعيل الصوت والاشعارات والدخول</p>
-    
-    <button class="btn-activate" onclick="document.getElementById('activation-screen').style.setProperty('display', 'none', 'important'); startAudio();">تفعيل ودخول 🔐</button>
+<div id="gate">
+    <img src="https://cdn-icons-png.flaticon.com/512/134/134914.png" width="100" style="margin-bottom:30px">
+    <h2 style="margin-bottom:40px">مرحباً بك في شات الطويل</h2>
+    <button class="enter-btn" onclick="document.getElementById('gate').style.display='none'; document.getElementById('main-ui').style.display='flex'; startEverything();">
+        تفعيل ودخول 🔐
+    </button>
 </div>
 
-<audio id="s-in" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg" preload="auto"></audio>
-
-<div id="main-app">
+<div id="main-ui">
     <div class="header">
-        <span style="font-weight:bold;">Eltaweel Chat</span>
-        <small id="my-num"></small>
+        <span>Eltaweel Chat</span>
+        <small id="me"></small>
     </div>
-    <div id="friends-list" style="background:white; min-height:100vh; color:black; border-radius:20px 20px 0 0; padding:10px;"></div>
-    <button onclick="addFriend()" style="position:fixed; bottom:25px; left:25px; width:65px; height:65px; border-radius:50%; background:var(--accent); color:white; border:none; font-size:35px; cursor:pointer;">+</button>
+    <div id="list"></div>
+    <button onclick="add()" style="position:fixed; bottom:20px; left:20px; width:60px; height:60px; border-radius:50%; background:var(--accent); color:white; border:none; font-size:30px;">+</button>
 </div>
 
-<div id="chat-ui">
-    <div class="header">
-        <button onclick="location.reload()" style="background:none; border:none; color:white; font-size:24px;">➡️</button>
-        <span id="target-title">المحادثة</span>
-        <div style="width:30px;"></div>
-    </div>
-    <div id="msg-area"></div>
-    <div style="background:#eee; padding:10px; display:flex; gap:10px;">
-        <input type="text" id="m-input" style="flex:1; padding:12px; border-radius:25px; border:none;" placeholder="رسالة...">
-        <button onclick="sendMsg()" style="background:none; border:none; font-size:28px;">🕊️</button>
-    </div>
-</div>
+<audio id="beep" src="https://actions.google.com/sounds/v1/alarms/beep_short.ogg"></audio>
 
 <script>
-    const firebaseConfig = {
+    // الإعدادات من صورك
+    const config = {
         apiKey: "AIzaSyDRdboeLuFYh_paYHem0SbgCar4bGgBFSI",
         authDomain: "eltaweel-chat.firebaseapp.com",
         projectId: "eltaweel-chat",
@@ -77,95 +63,56 @@
         databaseURL: "https://eltaweel-chat-default-rtdb.firebaseio.com"
     };
 
-    firebase.initializeApp(firebaseConfig);
-    const auth = firebase.auth(), db = firebase.firestore(), rtdb = firebase.database();
-    let myUid, myPhone, activeChat, mCount = 0;
+    firebase.initializeApp(config);
+    const auth = firebase.auth(), db = firebase.firestore();
+    let myId, myNum;
 
-    // دالة تفعيل الصوت المنفصلة
-    function startAudio() {
+    function startEverything() {
+        console.log("System Started");
         if ("Notification" in window) Notification.requestPermission();
-        const s = document.getElementById('s-in');
-        s.play().then(() => { s.pause(); s.currentTime = 0; }).catch(e => console.log("Audio Init"));
+        document.getElementById('beep').play().then(p => { 
+            document.getElementById('beep').pause(); 
+        }).catch(e => {});
     }
 
     auth.onAuthStateChanged(user => {
         if (user) {
-            myUid = user.uid;
-            rtdb.ref('/status/' + myUid).onDisconnect().set('offline').then(() => rtdb.ref('/status/' + myUid).set('online'));
-            checkUser();
+            myId = user.uid;
+            db.collection("users").doc(myId).get().then(doc => {
+                if (!doc.exists) {
+                    let p = prompt("أدخل رقمك:");
+                    if(p) db.collection("users").doc(myId).set({phone: p, uid: myId}).then(()=>location.reload());
+                } else {
+                    myNum = doc.data().phone;
+                    document.getElementById('me').innerText = myNum;
+                    load();
+                }
+            });
         } else {
             auth.signInAnonymously();
         }
     });
 
-    function checkUser() {
-        db.collection("users").doc(myUid).get().then(doc => {
-            if (!doc.exists) {
-                let p = prompt("سجل رقمك:");
-                if(p) db.collection("users").doc(myUid).set({phone: p, uid: myUid}).then(()=>location.reload());
-            } else {
-                myPhone = doc.data().phone;
-                document.getElementById('my-num').innerText = myPhone;
-                loadFriends();
-            }
-        });
-    }
-
-    function loadFriends() {
-        db.collection("users").doc(myUid).collection("myChats").onSnapshot(snap => {
-            const list = document.getElementById('friends-list');
-            list.innerHTML = "";
-            snap.forEach(doc => {
-                const f = doc.data();
-                const div = document.createElement('div');
-                div.style = "padding:15px; border-bottom:1px solid #eee; display:flex; align-items:center; gap:15px; cursor:pointer;";
-                div.onclick = () => openChat(f.id, f.nickname);
-                div.innerHTML = `<div style="width:50px; height:50px; background:#075e54; border-radius:50%; display:flex; align-items:center; justify-content:center; color:white; font-weight:bold;">${f.nickname.charAt(0)}</div><b>${f.nickname}</b>`;
-                list.appendChild(div);
-            });
-        });
-    }
-
-    function openChat(id, name) {
-        activeChat = [myUid, id].sort().join("_");
-        document.getElementById('main-app').style.display = 'none';
-        document.getElementById('chat-ui').style.display = 'flex';
-        document.getElementById('target-title').innerText = name;
-        sync();
-    }
-
-    function sync() {
-        db.collection("chats").doc(activeChat).collection("messages").orderBy("time").onSnapshot(snap => {
-            const area = document.getElementById('msg-area');
-            area.innerHTML = "";
+    function load() {
+        db.collection("users").doc(myId).collection("myChats").onSnapshot(snap => {
+            const l = document.getElementById('list');
+            l.innerHTML = "";
             snap.forEach(d => {
-                const m = d.data();
-                const isMe = m.sender === myUid;
-                area.innerHTML += `<div class="bubble ${isMe ? 'sent' : 'received'}">${m.text}</div>`;
+                const f = d.data();
+                const item = document.createElement('div');
+                item.style = "padding:20px; border-bottom:1px solid #eee; font-weight:bold;";
+                item.innerText = f.nickname;
+                item.onclick = () => alert("جاري فتح شات " + f.nickname);
+                l.appendChild(item);
             });
-            if (snap.size > mCount && snap.docs[snap.size-1].data().sender !== myUid) {
-                document.getElementById('s-in').play().catch(()=>{});
-            }
-            mCount = snap.size;
-            area.scrollTop = area.scrollHeight;
         });
     }
 
-    function sendMsg() {
-        const val = document.getElementById('m-input').value;
-        if (!val) return;
-        db.collection("chats").doc(activeChat).collection("messages").add({
-            text: val, sender: myUid, status: "sent", time: firebase.firestore.FieldValue.serverTimestamp()
-        });
-        document.getElementById('m-input').value = "";
-    }
-
-    function addFriend() {
+    function add() {
         let p = prompt("رقم الصديق:");
         db.collection("users").where("phone", "==", p).get().then(s => {
-            if (s.empty) return alert("غير مسجل");
-            const f = s.docs[0].data();
-            db.collection("users").doc(myUid).collection("myChats").doc(f.uid).set({id: f.uid, nickname: p});
+            if(s.empty) return alert("غير مسجل");
+            db.collection("users").doc(myId).collection("myChats").doc(s.docs[0].id).set({id: s.docs[0].id, nickname: p});
         });
     }
 </script>
